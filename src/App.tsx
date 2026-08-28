@@ -40,6 +40,8 @@ function App() {
   });
   const [tab, setTab] = useState<TabId>("dashboard");
   const [importText, setImportText] = useState("");
+  const [renderNonce, setRenderNonce] = useState(0);
+  const [upgradeNotice, setUpgradeNotice] = useState("Factories online and ready.");
   const [log, setLog] = useState<string[]>([
     "System online. Industrial Frontier booted.",
     "Power network and logistics are operating in nominal state.",
@@ -48,11 +50,23 @@ function App() {
 
   useEffect(() => {
     gameRef.current = game;
+    (window as typeof window & { __gameDebug?: { getState: () => GameState; tick: () => void } }).__gameDebug = {
+      getState: () => gameRef.current,
+      tick: () => {
+        const next = tickGameState(structuredClone(gameRef.current), 1);
+        gameRef.current = next;
+        setGame({ ...next });
+        setRenderNonce((value) => value + 1);
+      },
+    };
   }, [game]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setGame((current) => tickGameState(structuredClone(current), 1));
+      const next = tickGameState(structuredClone(gameRef.current), 1);
+      gameRef.current = next;
+      setGame({ ...next });
+      setRenderNonce((value) => value + 1);
     }, 1000);
 
     return () => window.clearInterval(interval);
@@ -60,9 +74,11 @@ function App() {
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      const next = { ...gameRef.current, lastSavedTimestamp: Date.now() };
+      const next = structuredClone(gameRef.current);
+      next.lastSavedTimestamp = Date.now();
       gameRef.current = next;
-      setGame(next);
+      setGame({ ...next });
+      setRenderNonce((value) => value + 1);
       saveGame(next);
     }, 10000);
 
@@ -102,9 +118,19 @@ function App() {
   };
 
   const handleUpgrade = (facilityId: FacilityId) => {
-    const next = upgradeFacility(structuredClone(gameRef.current), facilityId);
+    const current = structuredClone(gameRef.current);
+    const next = upgradeFacility(current, facilityId);
+
+    if (next === current && current.facilities[facilityId].level === gameRef.current.facilities[facilityId].level) {
+      setUpgradeNotice(`${current.facilities[facilityId].name} cannot be upgraded yet.`);
+      addLog(`${current.facilities[facilityId].name} upgrade blocked: insufficient funds or materials.`);
+      return;
+    }
+
+    gameRef.current = next;
     setGame(next);
-    addLog(`${gameRef.current.facilities[facilityId].name} upgraded to level ${next.facilities[facilityId].level}.`);
+    setUpgradeNotice(`${next.facilities[facilityId].name} upgraded to level ${next.facilities[facilityId].level}.`);
+    addLog(`${next.facilities[facilityId].name} upgraded to level ${next.facilities[facilityId].level}.`);
   };
 
   const handleToggle = (facilityId: FacilityId) => {
@@ -156,6 +182,7 @@ function App() {
             <p className="eyebrow">Overview</p>
             <h2>Factory performance</h2>
           </div>
+          <span className="status-banner">{upgradeNotice}</span>
         </div>
 
         <div className="kpis">
@@ -228,7 +255,10 @@ function App() {
                 <p className="eyebrow">Facility</p>
                 <h3>{facility.name}</h3>
               </div>
-              <span className={`badge ${statusClass}`}>{facility.status}</span>
+              <div className="facility-badges">
+                <span className="badge level-badge">Lv {facility.level}</span>
+                <span className={`badge ${statusClass}`}>{facility.status}</span>
+              </div>
             </div>
 
             <div className="facility-meta">
@@ -270,8 +300,12 @@ function App() {
 
             <div className="facility-actions">
               <button className="secondary" onClick={() => handleToggle(facility.id)}>{facility.enabled ? "Pause" : "Activate"}</button>
-              <button onClick={() => handleUpgrade(facility.id)}>
-                Upgrade • {formatMoney(cost.cash)}
+              <button
+                onClick={() => handleUpgrade(facility.id)}
+                disabled={game.cash < cost.cash}
+                title={game.cash < cost.cash ? "Need more cash and materials" : `Upgrade ${facility.name}`}
+              >
+                {game.cash >= cost.cash ? `Upgrade • ${formatMoney(cost.cash)}` : `Locked • ${formatMoney(cost.cash)}`}
               </button>
             </div>
           </article>

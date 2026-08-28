@@ -41,10 +41,10 @@ export const INITIAL_GAME_STATE: GameState = {
   },
   warehouses: {
     central: {
-      capacity: 500,
+      capacity: 20000,
       inventory: {
         power: { amount: 10, reserved: 0 },
-        coal: { amount: 120, reserved: 0 },
+        coal: { amount: 300, reserved: 0 },
         ironOre: { amount: 80, reserved: 0 },
         ironIngot: { amount: 0, reserved: 0 },
         steelPlate: { amount: 0, reserved: 0 },
