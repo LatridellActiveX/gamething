@@ -29,14 +29,14 @@ export function computePowerStats(state: GameState) {
   let consumption = 0;
 
   for (const facility of Object.values(state.facilities)) {
-    if (!facility.enabled) continue;
+    if (!facility.enabled || !facility.unlocked) continue;
     production += (facility.outputRate.power ?? 0) * facility.level;
     consumption += facility.powerConsumption * facility.level;
   }
 
   state.power.productionPerSecond = production;
   state.power.consumptionPerSecond = consumption;
-  state.power.available = state.warehouses.energy.inventory.power.amount;
+  state.power.available = production;
 }
 
 export function getNetResourceRate(state: GameState, resourceId: ResourceId): number {
@@ -70,7 +70,6 @@ export function tickGameState(state: GameState, seconds: number): GameState {
   const dt = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   updateFacilityUnlocks(state);
   const warehouse = state.warehouses.central;
-  const energyWarehouse = state.warehouses.energy;
   const facilityList = Object.values(state.facilities).sort((a, b) => {
     const aIsPower = (a.outputRate.power ?? 0) > 0 ? 1 : 0;
     const bIsPower = (b.outputRate.power ?? 0) > 0 ? 1 : 0;
@@ -78,7 +77,8 @@ export function tickGameState(state: GameState, seconds: number): GameState {
   });
 
   for (let step = 0; step < dt; step += 1) {
-    let powerPool = energyWarehouse.inventory.power.amount;
+    computePowerStats(state);
+    const gridHasCapacity = state.power.productionPerSecond >= state.power.consumptionPerSecond;
 
     for (const facility of facilityList) {
       if (!facility.enabled) {
@@ -90,9 +90,8 @@ export function tickGameState(state: GameState, seconds: number): GameState {
         continue;
       }
 
-      const powerCost = facility.powerConsumption * facility.level;
       const storageUsedBefore = MATERIAL_RESOURCE_IDS.reduce((total, resourceId) => total + warehouse.inventory[resourceId].amount, 0);
-      const hasPower = powerPool >= powerCost;
+      const hasPower = facility.powerConsumption === 0 || gridHasCapacity;
 
       const missingInputs = Object.entries(facility.inputRate).some(([resourceId, rate]) => {
         const key = resourceId as ResourceId;
@@ -106,7 +105,8 @@ export function tickGameState(state: GameState, seconds: number): GameState {
       }
 
       let canStoreAllOutputs = true;
-      for (const [, outputRate] of Object.entries(facility.outputRate)) {
+      for (const [resourceId, outputRate] of Object.entries(facility.outputRate)) {
+        if (resourceId === "power") continue;
         const outputAmount = outputRate * facility.level;
         const futureTotal = storageUsedBefore + outputAmount;
         if (futureTotal > warehouse.capacity) {
@@ -120,9 +120,6 @@ export function tickGameState(state: GameState, seconds: number): GameState {
         continue;
       }
 
-      powerPool = Math.max(0, powerPool - powerCost);
-      energyWarehouse.inventory.power.amount = powerPool;
-
       for (const [resourceId, rate] of Object.entries(facility.inputRate)) {
         const key = resourceId as ResourceId;
         warehouse.inventory[key].amount = Math.max(0, warehouse.inventory[key].amount - rate * facility.level);
@@ -130,7 +127,9 @@ export function tickGameState(state: GameState, seconds: number): GameState {
 
       for (const [resourceId, rate] of Object.entries(facility.outputRate)) {
         const key = resourceId as ResourceId;
-        warehouse.inventory[key].amount += rate * facility.level;
+        if (key !== "power") {
+          warehouse.inventory[key].amount += rate * facility.level;
+        }
       }
 
       facility.status = "online";

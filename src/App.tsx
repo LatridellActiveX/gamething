@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RESOURCE_DEFINITIONS } from "./game/state/initialState";
 import { INITIAL_GAME_STATE } from "./game/state/initialState";
-import { SAVE_KEY, exportSave, importSave, loadGame, resetSave, saveGame } from "./game/state/storage";
+import { exportSave, importSave, loadGame, resetSave, saveGame } from "./game/state/storage";
 import type { FacilityId, GameState, ResourceId } from "./game/state/types";
 import {
   applyOfflineProgress,
@@ -35,17 +35,6 @@ function App() {
   const [game, setGame] = useState<GameState>(() => {
     try {
       const saved = loadGame();
-      const starter = structuredClone(INITIAL_GAME_STATE);
-      const isLegacySave =
-        saved.warehouses.central.capacity < starter.warehouses.central.capacity
-        || saved.warehouses.central.inventory.coal.amount < starter.warehouses.central.inventory.coal.amount
-        || saved.power.available < starter.power.available;
-
-      if (isLegacySave) {
-        localStorage.setItem(SAVE_KEY, JSON.stringify(starter));
-        return applyOfflineProgress(starter, Date.now());
-      }
-
       return applyOfflineProgress(saved, Date.now());
     } catch {
       return structuredClone(INITIAL_GAME_STATE);
@@ -167,8 +156,9 @@ function App() {
 
   const handleBuy = (resourceId: ResourceId, quantity: number) => {
     const current = structuredClone(gameRef.current);
+    const startingAmount = current.warehouses.central.inventory[resourceId].amount;
     const next = purchaseResource(current, resourceId, quantity);
-    const bought = Math.max(0, next.warehouses.central.inventory[resourceId].amount - current.warehouses.central.inventory[resourceId].amount);
+    const bought = Math.max(0, next.warehouses.central.inventory[resourceId].amount - startingAmount);
 
     if (bought <= 0) {
       addLog(`Market purchase failed for ${RESOURCE_DEFINITIONS[resourceId].name}: insufficient cash or storage.`);

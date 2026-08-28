@@ -77,10 +77,6 @@ function normalizeSave(state: GameState): GameState {
       legacy.facilities[facilityId as keyof GameState["facilities"]] = starterFacility;
     }
   }
-  const hasLegacyStarter =
-    state.warehouses.central.capacity < starter.warehouses.central.capacity
-    || state.warehouses.central.inventory.coal.amount < starter.warehouses.central.inventory.coal.amount
-    || state.power.available < starter.power.available;
-
-  return hasLegacyStarter ? starter : legacy;
+  legacy.facilities.solarPanels.unlocked = true;
+  return legacy;
 }
