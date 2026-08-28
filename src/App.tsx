@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RESOURCE_DEFINITIONS } from "./game/state/initialState";
 import { INITIAL_GAME_STATE } from "./game/state/initialState";
-import { exportSave, importSave, loadGame, resetSave, saveGame } from "./game/state/storage";
+import { SAVE_KEY, exportSave, importSave, loadGame, resetSave, saveGame } from "./game/state/storage";
 import type { FacilityId, GameState, ResourceId } from "./game/state/types";
 import {
   applyOfflineProgress,
@@ -34,6 +34,17 @@ function App() {
   const [game, setGame] = useState<GameState>(() => {
     try {
       const saved = loadGame();
+      const starter = structuredClone(INITIAL_GAME_STATE);
+      const isLegacySave =
+        saved.warehouses.central.capacity < starter.warehouses.central.capacity
+        || saved.warehouses.central.inventory.coal.amount < starter.warehouses.central.inventory.coal.amount
+        || saved.power.available < starter.power.available;
+
+      if (isLegacySave) {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(starter));
+        return applyOfflineProgress(starter, Date.now());
+      }
+
       return applyOfflineProgress(saved, Date.now());
     } catch {
       return structuredClone(INITIAL_GAME_STATE);
@@ -212,7 +223,7 @@ function App() {
             <strong>{powerBalance.available.toFixed(0)} MW</strong>
           </div>
           <div className="kpi accent-orange">
-            <span>Warehouse</span>
+            <span>Capacity Used</span>
             <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
           </div>
         </div>
@@ -457,7 +468,7 @@ function App() {
             <strong>{powerBalance.available.toFixed(0)} / {powerBalance.consumption.toFixed(0)} MW</strong>
           </div>
           <div className="mini-stat">
-            <span>Storage</span>
+            <span>Warehouse Used</span>
             <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
           </div>
         </div>

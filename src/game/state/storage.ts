@@ -16,11 +16,23 @@ export function loadGame(): GameState {
     return structuredClone(INITIAL_GAME_STATE);
   }
 
-  const parsed: unknown = JSON.parse(raw);
-  if (!isGameState(parsed)) {
-    throw new Error("The stored save is invalid or incompatible.");
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isGameState(parsed)) {
+      throw new Error("The stored save is invalid or incompatible.");
+    }
+
+    const normalized = normalizeSave(parsed);
+    if (normalized !== parsed) {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(normalized));
+      return normalized;
+    }
+
+    return parsed;
+  } catch {
+    localStorage.removeItem(SAVE_KEY);
+    return structuredClone(INITIAL_GAME_STATE);
   }
-  return parsed;
 }
 
 export function exportSave(state: GameState): string {
@@ -49,4 +61,14 @@ function isGameState(value: unknown): value is GameState {
     && typeof candidate.lastTickTimestamp === "number"
     && Boolean(candidate.warehouses?.central)
     && Boolean(candidate.facilities);
+}
+
+function normalizeSave(state: GameState): GameState {
+  const starter = structuredClone(INITIAL_GAME_STATE);
+  const hasLegacyStarter =
+    state.warehouses.central.capacity < starter.warehouses.central.capacity
+    || state.warehouses.central.inventory.coal.amount < starter.warehouses.central.inventory.coal.amount
+    || state.power.available < starter.power.available;
+
+  return hasLegacyStarter ? starter : state;
 }
