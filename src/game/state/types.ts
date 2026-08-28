@@ -15,9 +15,13 @@ export type FacilityId =
   | "coalExcavator"
   | "blastFurnace"
   | "rollingMill"
-  | "concreteBatchPlant";
+  | "concreteBatchPlant"
+  | "solarPanels"
+  | "windTurbines"
+  | "energyWarehouse";
 
 export type FacilityStatus = "online" | "starved" | "storage-full" | "offline";
+export type MaterialResourceId = Exclude<ResourceId, "power">;
 
 export interface ResourceDefinition {
   name: string;
@@ -36,6 +40,13 @@ export interface WarehouseState {
   inventory: Record<ResourceId, InventoryEntry>;
 }
 
+export interface EnergyWarehouseState {
+  capacity: number;
+  inventory: {
+    power: InventoryEntry;
+  };
+}
+
 export interface UpgradeCost {
   cash: number;
   materials: Partial<Record<ResourceId, number>>;
@@ -50,6 +61,11 @@ export interface FacilityState {
   inputRate: Partial<Record<ResourceId, number>>;
   outputRate: Partial<Record<ResourceId, number>>;
   powerConsumption: number;
+  unlocked: boolean;
+  unlockRequirement?: {
+    facilityId: FacilityId;
+    level: number;
+  };
   upgrade: {
     base: UpgradeCost;
     growth: number;
@@ -66,6 +82,7 @@ export interface GameState {
   };
   warehouses: {
     central: WarehouseState;
+    energy: EnergyWarehouseState;
   };
   facilities: Record<FacilityId, FacilityState>;
   lastTickTimestamp: number;

@@ -14,6 +14,7 @@ import {
   tickGameState,
   toggleFacility,
   upgradeFacility,
+  updateFacilityUnlocks,
 } from "./game/engine";
 
 const TAB_ITEMS = [
@@ -101,6 +102,7 @@ function App() {
     () =>
       (Object.keys(RESOURCE_DEFINITIONS) as ResourceId[]).map((resourceId) => {
         const definition = RESOURCE_DEFINITIONS[resourceId];
+        if (resourceId === "power") return null;
         const amount = game.warehouses.central.inventory[resourceId].amount;
         const rate = getNetResourceRate(game, resourceId);
         return {
@@ -112,13 +114,13 @@ function App() {
         };
       }),
     [game],
-  );
+  ).filter((row): row is NonNullable<typeof row> => row !== null);
 
   const storage = useMemo(() => computeWarehouseSummary(game), [game]);
 
   const powerBalance = useMemo(
     () => ({
-      available: game.warehouses.central.inventory.power.amount,
+      available: game.warehouses.energy.inventory.power.amount,
       production: game.power.productionPerSecond,
       consumption: game.power.consumptionPerSecond,
     }),
@@ -132,6 +134,7 @@ function App() {
   const handleUpgrade = (facilityId: FacilityId) => {
     const current = structuredClone(gameRef.current);
     const next = upgradeFacility(current, facilityId);
+    updateFacilityUnlocks(next);
 
     if (next === current && current.facilities[facilityId].level === gameRef.current.facilities[facilityId].level) {
       setUpgradeNotice(`${current.facilities[facilityId].name} cannot be upgraded yet.`);
@@ -220,7 +223,7 @@ function App() {
           </div>
           <div className="kpi accent-green">
             <span>Power</span>
-            <strong>{powerBalance.available.toFixed(0)} MW</strong>
+            <strong>{powerBalance.available.toFixed(0)} / {game.warehouses.energy.capacity} MW</strong>
           </div>
           <div className="kpi accent-orange">
             <span>Capacity Used</span>
@@ -248,7 +251,7 @@ function App() {
           </div>
           <div className="metric-row">
             <span>Available</span>
-            <strong>{powerBalance.available.toFixed(1)} MW</strong>
+            <strong>{powerBalance.available.toFixed(1)} / {game.warehouses.energy.capacity} MW</strong>
           </div>
         </div>
       </section>
@@ -291,7 +294,7 @@ function App() {
 
             <div className="facility-meta">
               <span>Level {facility.level}</span>
-              <span>{facility.enabled ? "Running" : "Paused"}</span>
+              <span>{!facility.unlocked ? `Unlocks at ${facility.unlockRequirement?.facilityId} Lv ${facility.unlockRequirement?.level}` : facility.enabled ? "Running" : "Paused"}</span>
             </div>
 
             <div className="small-grid">
@@ -327,13 +330,13 @@ function App() {
             </div>
 
             <div className="facility-actions">
-              <button className="secondary" onClick={() => handleToggle(facility.id)}>{facility.enabled ? "Pause" : "Activate"}</button>
+              <button className="secondary" onClick={() => handleToggle(facility.id)} disabled={!facility.unlocked}>{facility.enabled ? "Pause" : "Activate"}</button>
               <button
                 onClick={() => handleUpgrade(facility.id)}
-                disabled={game.cash < cost.cash}
+                disabled={!facility.unlocked || game.cash < cost.cash}
                 title={game.cash < cost.cash ? "Need more cash and materials" : `Upgrade ${facility.name}`}
               >
-                {game.cash >= cost.cash ? `Upgrade • ${formatMoney(cost.cash)}` : `Locked • ${formatMoney(cost.cash)}`}
+                {!facility.unlocked ? "Locked • Build prerequisite" : game.cash >= cost.cash ? `Upgrade • ${formatMoney(cost.cash)}` : `Locked • ${formatMoney(cost.cash)}`}
               </button>
             </div>
           </article>

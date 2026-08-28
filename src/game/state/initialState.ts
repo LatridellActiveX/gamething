@@ -19,6 +19,8 @@ const facility = (
   powerConsumption: number,
   cash: number,
   materials: Record<string, number> = {},
+  unlockRequirement?: { facilityId: FacilityId; level: number },
+  unlocked = true,
 ) => ({
   id,
   name,
@@ -28,6 +30,8 @@ const facility = (
   inputRate,
   outputRate,
   powerConsumption,
+  unlocked,
+  unlockRequirement,
   upgrade: { base: { cash, materials }, growth: 1.75 },
 });
 
@@ -43,7 +47,7 @@ export const INITIAL_GAME_STATE: GameState = {
     central: {
       capacity: 20000,
       inventory: {
-        power: { amount: 50, reserved: 0 },
+        power: { amount: 0, reserved: 0 },
         coal: { amount: 2000, reserved: 0 },
         ironOre: { amount: 80, reserved: 0 },
         ironIngot: { amount: 0, reserved: 0 },
@@ -53,15 +57,22 @@ export const INITIAL_GAME_STATE: GameState = {
         concrete: { amount: 0, reserved: 0 },
       },
     },
+    energy: {
+      capacity: 250,
+      inventory: { power: { amount: 50, reserved: 0 } },
+    },
   },
   facilities: {
     warehouse: facility("warehouse", "Warehouse", {}, {}, 0, 1_200, { concrete: 15 }),
+    energyWarehouse: facility("energyWarehouse", "Energy Storage", {}, {}, 0, 1_500, { steelPlate: 6, concrete: 10 }),
     coalGenerator: facility("coalGenerator", "Coal Generator", { coal: 2 }, { power: 5 }, 0, 650, { steelPlate: 5 }),
     ironOreMine: facility("ironOreMine", "Iron Ore Mine", {}, { ironOre: 1.5 }, 1, 900, { concrete: 10 }),
     coalExcavator: facility("coalExcavator", "Coal Excavator", {}, { coal: 1.25 }, 1, 900, { concrete: 10 }),
     blastFurnace: facility("blastFurnace", "Blast Furnace", { ironOre: 1, coal: 1 }, { ironIngot: 1 }, 2, 1_500, { steelPlate: 8 }),
     rollingMill: facility("rollingMill", "Rolling Mill", { ironIngot: 1, coal: 0.5 }, { steelPlate: 1 }, 2, 2_200, { concrete: 15 }),
     concreteBatchPlant: facility("concreteBatchPlant", "Concrete Batch Plant", { quicklime: 1, water: 2 }, { concrete: 1 }, 1, 1_200, { steelPlate: 5 }),
+    solarPanels: facility("solarPanels", "Solar Panels", {}, { power: 3 }, 0, 1_800, { steelPlate: 6, concrete: 8 }, { facilityId: "blastFurnace", level: 2 }, false),
+    windTurbines: facility("windTurbines", "Wind Turbines", {}, { power: 4 }, 0, 2_400, { steelPlate: 10, concrete: 12 }, { facilityId: "rollingMill", level: 2 }, false),
   },
   lastTickTimestamp: 0,
   lastSavedTimestamp: 0,

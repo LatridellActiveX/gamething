@@ -11,10 +11,11 @@ const RESOURCE_IDS: ResourceId[] = [
   "water",
   "concrete",
 ];
+const MATERIAL_RESOURCE_IDS = RESOURCE_IDS.filter((resourceId): resourceId is Exclude<ResourceId, "power"> => resourceId !== "power");
 
 export function computeWarehouseSummary(state: GameState) {
   const inventory = state.warehouses.central.inventory;
-  const used = RESOURCE_IDS.reduce((total, resourceId) => total + inventory[resourceId].amount, 0);
+  const used = MATERIAL_RESOURCE_IDS.reduce((total, resourceId) => total + inventory[resourceId].amount, 0);
   const capacity = state.warehouses.central.capacity;
   return {
     used,
@@ -35,7 +36,7 @@ export function computePowerStats(state: GameState) {
 
   state.power.productionPerSecond = production;
   state.power.consumptionPerSecond = consumption;
-  state.power.available = state.warehouses.central.inventory.power.amount;
+  state.power.available = state.warehouses.energy.inventory.power.amount;
 }
 
 export function getNetResourceRate(state: GameState, resourceId: ResourceId): number {
@@ -67,7 +68,9 @@ export function getFacilityUpgradeCost(facilityState: GameState["facilities"][Fa
 
 export function tickGameState(state: GameState, seconds: number): GameState {
   const dt = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+  updateFacilityUnlocks(state);
   const warehouse = state.warehouses.central;
+  const energyWarehouse = state.warehouses.energy;
   const facilityList = Object.values(state.facilities).sort((a, b) => {
     const aIsPower = (a.outputRate.power ?? 0) > 0 ? 1 : 0;
     const bIsPower = (b.outputRate.power ?? 0) > 0 ? 1 : 0;
@@ -75,16 +78,20 @@ export function tickGameState(state: GameState, seconds: number): GameState {
   });
 
   for (let step = 0; step < dt; step += 1) {
-    let powerPool = warehouse.inventory.power.amount;
+    let powerPool = energyWarehouse.inventory.power.amount;
 
     for (const facility of facilityList) {
       if (!facility.enabled) {
         facility.status = "offline";
         continue;
       }
+      if (!facility.unlocked) {
+        facility.status = "offline";
+        continue;
+      }
 
       const powerCost = facility.powerConsumption * facility.level;
-      const storageUsedBefore = RESOURCE_IDS.reduce((total, resourceId) => total + warehouse.inventory[resourceId].amount, 0);
+      const storageUsedBefore = MATERIAL_RESOURCE_IDS.reduce((total, resourceId) => total + warehouse.inventory[resourceId].amount, 0);
       const hasPower = powerPool >= powerCost;
 
       const missingInputs = Object.entries(facility.inputRate).some(([resourceId, rate]) => {
@@ -114,7 +121,7 @@ export function tickGameState(state: GameState, seconds: number): GameState {
       }
 
       powerPool = Math.max(0, powerPool - powerCost);
-      warehouse.inventory.power.amount = powerPool;
+      energyWarehouse.inventory.power.amount = powerPool;
 
       for (const [resourceId, rate] of Object.entries(facility.inputRate)) {
         const key = resourceId as ResourceId;
@@ -158,6 +165,7 @@ export function applyOfflineProgress(state: GameState, now = Date.now()) {
 
 export function toggleFacility(state: GameState, facilityId: FacilityId): GameState {
   const facility = state.facilities[facilityId];
+  if (!facility.unlocked) return state;
   facility.enabled = !facility.enabled;
   facility.status = facility.enabled ? "online" : "offline";
   computePowerStats(state);
@@ -203,6 +211,7 @@ export function purchaseResource(state: GameState, resourceId: ResourceId, reque
 
 export function upgradeFacility(state: GameState, facilityId: FacilityId): GameState {
   const facility = state.facilities[facilityId];
+  if (!facility.unlocked) return state;
   const cost = getFacilityUpgradeCost(facility, facility.level);
 
   const canAfford = state.cash >= cost.cash && Object.entries(cost.materials).every(([resourceId, amount]) => {
@@ -222,10 +231,25 @@ export function upgradeFacility(state: GameState, facilityId: FacilityId): GameS
   if (facilityId === "warehouse") {
     state.warehouses.central.capacity += 200;
   }
+  if (facilityId === "energyWarehouse") {
+    state.warehouses.energy.capacity += 50;
+  }
 
   facility.enabled = true;
   facility.status = "online";
   computePowerStats(state);
+  return state;
+}
+
+export function updateFacilityUnlocks(state: GameState): GameState {
+  for (const facility of Object.values(state.facilities)) {
+    const requirement = facility.unlockRequirement;
+    if (facility.unlocked || !requirement) continue;
+    if (state.facilities[requirement.facilityId].level >= requirement.level) {
+      facility.unlocked = true;
+      facility.status = "offline";
+    }
+  }
   return state;
 }
 

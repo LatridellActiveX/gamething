@@ -44,7 +44,7 @@ export function importSave(json: string): GameState {
   if (!isGameState(parsed)) {
     throw new Error("The imported save is invalid or incompatible.");
   }
-  return parsed;
+  return normalizeSave(parsed);
 }
 
 export function resetSave(): GameState {
@@ -65,10 +65,22 @@ function isGameState(value: unknown): value is GameState {
 
 function normalizeSave(state: GameState): GameState {
   const starter = structuredClone(INITIAL_GAME_STATE);
+  const legacy = state as GameState & {
+    warehouses: GameState["warehouses"] & { energy?: GameState["warehouses"]["energy"] };
+  };
+  if (!legacy.warehouses.energy) {
+    legacy.warehouses.energy = structuredClone(starter.warehouses.energy);
+    legacy.warehouses.energy.inventory.power.amount = legacy.warehouses.central.inventory.power.amount;
+  }
+  for (const [facilityId, starterFacility] of Object.entries(starter.facilities)) {
+    if (!legacy.facilities[facilityId as keyof GameState["facilities"]]) {
+      legacy.facilities[facilityId as keyof GameState["facilities"]] = starterFacility;
+    }
+  }
   const hasLegacyStarter =
     state.warehouses.central.capacity < starter.warehouses.central.capacity
     || state.warehouses.central.inventory.coal.amount < starter.warehouses.central.inventory.coal.amount
     || state.power.available < starter.power.available;
 
-  return hasLegacyStarter ? starter : state;
+  return hasLegacyStarter ? starter : legacy;
 }
