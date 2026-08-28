@@ -9,6 +9,7 @@ import {
   getFacilityUpgradeCost,
   getNetResourceRate,
   getResourcePrice,
+  purchaseResource,
   sellResource,
   tickGameState,
   toggleFacility,
@@ -148,6 +149,22 @@ function App() {
     if (sold > 0) {
       addLog(`Sold ${formatQuantity(sold)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(sold * getResourcePrice(resourceId))}.`);
     }
+  };
+
+  const handleBuy = (resourceId: ResourceId, quantity: number) => {
+    const current = structuredClone(gameRef.current);
+    const next = purchaseResource(current, resourceId, quantity);
+    const bought = Math.max(0, next.warehouses.central.inventory[resourceId].amount - current.warehouses.central.inventory[resourceId].amount);
+
+    if (bought <= 0) {
+      addLog(`Market purchase failed for ${RESOURCE_DEFINITIONS[resourceId].name}: insufficient cash or storage.`);
+      return;
+    }
+
+    gameRef.current = next;
+    setGame(next);
+    setUpgradeNotice(`Purchased ${formatQuantity(bought)} ${RESOURCE_DEFINITIONS[resourceId].name}.`);
+    addLog(`Bought ${formatQuantity(bought)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(bought * getResourcePrice(resourceId) * 1.2)}.`);
   };
 
   const handleExport = async () => {
@@ -337,7 +354,9 @@ function App() {
                     <small>{RESOURCE_DEFINITIONS[resourceId].unit}</small>
                   </div>
                 </td>
-                <td>{formatQuantity(amount)}</td>
+                <td>
+                  <span key={`${resourceId}-${amount}`} className="stock-value">{formatQuantity(amount)}</span>
+                </td>
                 <td className={rate >= 0 ? "positive" : "danger"}>{formatRate(rate)}</td>
                 <td>
                   <div className="progress-wrap">
@@ -367,20 +386,25 @@ function App() {
         <div className="panel-header">
           <div>
             <p className="eyebrow">Market</p>
-            <h2>Instant liquidity</h2>
+            <h2>Buy & sell</h2>
           </div>
         </div>
 
         <div className="market-list">
-          {resourceRows.filter((entry) => entry.amount > 0).map(({ resourceId, name, amount, price }) => (
+          {resourceRows.map(({ resourceId, name, amount, price }) => (
             <div key={resourceId} className="market-item">
               <div>
                 <strong>{name}</strong>
                 <span>{formatQuantity(amount)} on hand</span>
               </div>
-              <button onClick={() => handleSell(resourceId, Math.max(10, Math.round(amount * 0.25)))}>
-                Sell {formatMoney(price * Math.max(10, Math.round(amount * 0.25)))}
-              </button>
+              <div className="market-actions">
+                <button className="small" onClick={() => handleBuy(resourceId, 25)}>
+                  Buy 25 • {formatMoney(price * 25 * 1.2)}
+                </button>
+                <button className="small secondary" onClick={() => handleSell(resourceId, Math.max(10, Math.round(amount * 0.25)))}>
+                  Sell {formatMoney(price * Math.max(10, Math.round(amount * 0.25)))}
+                </button>
+              </div>
             </div>
           ))}
         </div>

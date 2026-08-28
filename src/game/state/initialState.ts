@@ -35,7 +35,7 @@ export const INITIAL_GAME_STATE: GameState = {
   schemaVersion: 1,
   cash: 10_000,
   power: {
-    available: 10,
+    available: 50,
     productionPerSecond: 5,
     consumptionPerSecond: 0,
   },
@@ -43,8 +43,8 @@ export const INITIAL_GAME_STATE: GameState = {
     central: {
       capacity: 20000,
       inventory: {
-        power: { amount: 10, reserved: 0 },
-        coal: { amount: 300, reserved: 0 },
+        power: { amount: 50, reserved: 0 },
+        coal: { amount: 2000, reserved: 0 },
         ironOre: { amount: 80, reserved: 0 },
         ironIngot: { amount: 0, reserved: 0 },
         steelPlate: { amount: 0, reserved: 0 },
