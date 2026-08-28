@@ -173,7 +173,7 @@ h3 {
 
 .topbar-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -307,6 +307,59 @@ h3 {
 .facility-grid {
   display: grid;
   gap: 1rem;
+}
+
+.facility-sections {
+  display: grid;
+  gap: 1rem;
+}
+
+.catalog-header {
+  margin: 0;
+  padding: 0.25rem 0;
+}
+
+.facility-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.7rem;
+  min-height: 92px;
+  padding: 0.75rem;
+  border: 1px dashed rgba(56, 189, 248, 0.28);
+  background:
+    linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+    rgba(3, 12, 18, 0.45);
+  background-size: 20px 20px;
+}
+
+.map-node {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid var(--panel-border);
+  background: rgba(17, 26, 32, 0.9);
+}
+
+.map-node small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+}
+
+.map-node-light {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 8px currentColor;
+}
+
+.map-node.active .map-node-light {
+  background: var(--green);
 }
 
 .facility-card {

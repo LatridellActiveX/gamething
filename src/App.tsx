@@ -6,6 +6,7 @@ import type { FacilityId, GameState, ResourceId } from "./game/state/types";
 import {
   applyOfflineProgress,
   computeWarehouseSummary,
+  computeFinancials,
   getFacilityUpgradeCost,
   getNetResourceRate,
   getResourcePrice,
@@ -30,6 +31,11 @@ type TabId = (typeof TAB_ITEMS)[number]["id"];
 const formatMoney = (value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const formatRate = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(2)}/s`;
 const formatQuantity = (value: number) => `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+const formatDuration = (seconds: number) => {
+  const wholeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(wholeSeconds / 60);
+  return `${minutes}m ${String(wholeSeconds % 60).padStart(2, "0")}s`;
+};
 
 function App() {
   const [game, setGame] = useState<GameState>(() => {
@@ -115,6 +121,7 @@ function App() {
     }),
     [game],
   );
+  const financials = useMemo(() => computeFinancials(game), [game]);
 
   const addLog = (entry: string) => {
     setLog((current) => [entry, ...current].slice(0, 8));
@@ -141,7 +148,7 @@ function App() {
     const next = toggleFacility(structuredClone(gameRef.current), facilityId);
     setGame(next);
     addLog(
-      `${gameRef.current.facilities[facilityId].name} ${next.facilities[facilityId].enabled ? "activated" : "paused"}.`,
+      `${gameRef.current.facilities[facilityId].name} ${next.facilities[facilityId].active ? "activated" : "paused"}.`,
     );
   };
 
@@ -246,6 +253,22 @@ function App() {
         </div>
       </section>
 
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Finance</p>
+            <h2>Financials</h2>
+          </div>
+        </div>
+        <div className="metric-list">
+          <div className="metric-row"><span>Current Cash</span><strong>{formatMoney(game.cash)}</strong></div>
+          <div className="metric-row"><span>Facility Upkeep</span><strong className="danger">-{formatMoney(financials.upkeep)} / sec</strong></div>
+          <div className="metric-row"><span>Labor Wages</span><strong className="danger">-{formatMoney(financials.wages)} / sec</strong></div>
+          <div className="metric-row"><span>Net Cash Flow</span><strong className={financials.net > 0 ? "positive" : "danger"}>{financials.net > 0 ? "+" : "-"}{formatMoney(Math.abs(financials.net))} / sec</strong></div>
+          <div className="metric-row"><span>Runway</span><strong>{financials.net > 0 || financials.net === 0 ? "Infinity" : formatDuration(game.cash / financials.net)}</strong></div>
+        </div>
+      </section>
+
       <section className="panel wide">
         <div className="panel-header">
           <div>
@@ -264,8 +287,39 @@ function App() {
   );
 
   const renderFacilities = () => (
-    <div className="facility-grid">
-      {Object.values(game.facilities).map((facility) => {
+    <div className="facility-sections">
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Operations map</p>
+            <h2>Built facilities</h2>
+          </div>
+          <span className="muted">{Object.values(game.facilities).filter((facility) => facility.level > 0).length} online assets</span>
+        </div>
+        <div className="facility-map">
+          {Object.values(game.facilities).filter((facility) => facility.level > 0).map((facility) => (
+            <div key={facility.id} className={`map-node ${facility.active ? "active" : "inactive"}`}>
+              <span className="map-node-light" />
+              <strong>{facility.name}</strong>
+              <small>LV {facility.level} / {facility.active ? "ACTIVE" : "OFFLINE"}</small>
+            </div>
+          ))}
+          {Object.values(game.facilities).every((facility) => facility.level === 0) && (
+            <p className="muted">No facilities built. Use the construction catalog below to deploy your first assets.</p>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <div className="panel-header catalog-header">
+          <div>
+            <p className="eyebrow">Construction catalog</p>
+            <h2>Available facilities</h2>
+          </div>
+          <span className="muted">Select a build to expand the map</span>
+        </div>
+        <div className="facility-grid">
+      {Object.values(game.facilities).filter((facility) => facility.level === 0).map((facility) => {
         const cost = getFacilityUpgradeCost(facility);
         const statusClass = facility.status === "online" ? "good" : facility.status === "starved" ? "bad" : facility.status === "storage-full" ? "warn" : "muted";
         const hasMaterials = Object.entries(cost.materials).every(([resourceId, amount]) =>
@@ -293,8 +347,8 @@ function App() {
             </div>
 
             <div className="facility-meta">
-              <span>Level {facility.level}</span>
-              <span>{facility.unlocked ? facility.enabled ? "Running" : "Paused" : "Locked"}</span>
+            <span>{facility.level === 0 ? "Not built" : `Level ${facility.level}`}</span>
+              <span>{facility.unlocked ? facility.active ? "Running" : "Paused" : "Locked"}</span>
             </div>
 
             {!facility.unlocked && unlockProgress.length > 0 && (
@@ -322,6 +376,8 @@ function App() {
                     {RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {formatQuantity(amount ?? 0)}
                   </span>
                 ))}
+                <span className="pill">Workers: {facility.workersNeeded * facility.level}</span>
+                <span className="pill">Upkeep: {formatMoney(facility.baseUpkeep * facility.level)}/s</span>
               </div>
             </div>
 
@@ -358,18 +414,20 @@ function App() {
             </div>
 
             <div className="facility-actions">
-              <button className="secondary" onClick={() => handleToggle(facility.id)} disabled={!facility.unlocked}>{facility.enabled ? "Pause" : "Activate"}</button>
+              <button className="secondary" onClick={() => handleToggle(facility.id)} disabled={!facility.unlocked}>Power: {facility.active ? "ON" : "OFF"}</button>
               <button
                 onClick={() => handleUpgrade(facility.id)}
                 disabled={!facility.unlocked || !canAfford}
                 title={!facility.unlocked ? "Complete the unlock requirements" : !canAfford ? "Need the listed cash and materials" : `Upgrade ${facility.name}`}
               >
-                {!facility.unlocked ? "Locked • See requirements" : canAfford ? `Upgrade • ${formatMoney(cost.cash)}` : "Need listed requirements"}
+                {!facility.unlocked ? "Locked • See requirements" : facility.level === 0 && canAfford ? `Build • ${formatMoney(cost.cash)}` : canAfford ? `Upgrade • ${formatMoney(cost.cash)}` : "Need listed requirements"}
               </button>
             </div>
           </article>
         );
       })}
+        </div>
+      </section>
     </div>
   );
 
@@ -501,6 +559,10 @@ function App() {
           <div className="mini-stat">
             <span>Warehouse Used</span>
             <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
+          </div>
+          <div className="mini-stat">
+            <span>Workforce</span>
+            <strong>{game.workforce.activeDemand} / {game.workforce.capacity}</strong>
           </div>
         </div>
       </header>

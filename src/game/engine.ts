@@ -29,7 +29,7 @@ export function computePowerStats(state: GameState) {
   let consumption = 0;
 
   for (const facility of Object.values(state.facilities)) {
-    if (!facility.enabled || !facility.unlocked) continue;
+    if (!facility.active || !facility.unlocked) continue;
     production += (facility.outputRate.power ?? 0) * facility.level;
     consumption += facility.powerConsumption * facility.level;
   }
@@ -39,11 +39,42 @@ export function computePowerStats(state: GameState) {
   state.power.available = production;
 }
 
+export const WAGE_RATE = 1;
+
+export function computeFinancials(state: GameState) {
+  const activeFacilities = Object.values(state.facilities).filter((facility) => facility.active && facility.level > 0 && facility.unlocked);
+  const upkeep = activeFacilities.reduce((total, facility) => total + facility.baseUpkeep * facility.level, 0);
+  const activeDemand = activeFacilities.reduce((total, facility) => total + facility.workersNeeded * facility.level, 0);
+  const wages = activeDemand * WAGE_RATE;
+  state.workforce.activeDemand = activeDemand;
+  state.cashFlow = { upkeep, wages, net: upkeep + wages };
+  return state.cashFlow;
+}
+
+function stabilizeCapacity(state: GameState) {
+  const facilities = Object.values(state.facilities);
+  while (true) {
+    const active = facilities.filter((facility) => facility.active && facility.level > 0 && facility.unlocked);
+    const workers = active.reduce((total, facility) => total + facility.workersNeeded * facility.level, 0);
+    const production = active.reduce((total, facility) => total + (facility.outputRate.power ?? 0) * facility.level, 0);
+    const demand = active.reduce((total, facility) => total + facility.powerConsumption * facility.level, 0);
+    if (workers <= state.workforce.capacity && production >= demand) break;
+
+    const candidate = [...active]
+      .filter((facility) => facility.outputRate.power === undefined || facility.powerConsumption > 0 || facility.workersNeeded > 0)
+      .reverse()
+      .find((facility) => facility.outputRate.power === undefined);
+    if (!candidate) break;
+    candidate.active = false;
+    candidate.status = "offline";
+  }
+}
+
 export function getNetResourceRate(state: GameState, resourceId: ResourceId): number {
   let total = 0;
 
   for (const facility of Object.values(state.facilities)) {
-    if (!facility.enabled) continue;
+    if (!facility.active || !facility.unlocked) continue;
     const outputAmount = (facility.outputRate[resourceId] ?? 0) * facility.level;
     const inputConsumption = (facility.inputRate[resourceId] ?? 0) * facility.level;
     total += outputAmount - inputConsumption;
@@ -77,11 +108,16 @@ export function tickGameState(state: GameState, seconds: number): GameState {
   });
 
   for (let step = 0; step < dt; step += 1) {
+    stabilizeCapacity(state);
     computePowerStats(state);
     const gridHasCapacity = state.power.productionPerSecond >= state.power.consumptionPerSecond;
 
     for (const facility of facilityList) {
-      if (!facility.enabled) {
+      if (!facility.active) {
+        facility.status = "offline";
+        continue;
+      }
+      if (facility.level <= 0) {
         facility.status = "offline";
         continue;
       }
@@ -136,6 +172,18 @@ export function tickGameState(state: GameState, seconds: number): GameState {
     }
 
     computePowerStats(state);
+    const financials = computeFinancials(state);
+    state.cash = Math.max(0, state.cash - financials.net);
+    if (state.cash <= 0) {
+      for (const facility of Object.values(state.facilities)) {
+        if (facility.baseUpkeep > 0 || facility.workersNeeded > 0) {
+          facility.active = false;
+          facility.status = "offline";
+        }
+      }
+      computePowerStats(state);
+      computeFinancials(state);
+    }
     state.lastTickTimestamp = Date.now();
   }
 
@@ -165,9 +213,12 @@ export function applyOfflineProgress(state: GameState, now = Date.now()) {
 export function toggleFacility(state: GameState, facilityId: FacilityId): GameState {
   const facility = state.facilities[facilityId];
   if (!facility.unlocked) return state;
-  facility.enabled = !facility.enabled;
-  facility.status = facility.enabled ? "online" : "offline";
+  facility.active = !facility.active;
+  facility.enabled = facility.active;
+  facility.status = facility.active ? "online" : "offline";
+  stabilizeCapacity(state);
   computePowerStats(state);
+  computeFinancials(state);
   return state;
 }
 
@@ -234,8 +285,10 @@ export function upgradeFacility(state: GameState, facilityId: FacilityId): GameS
     state.warehouses.energy.capacity += 50;
   }
 
+  facility.active = true;
   facility.enabled = true;
   facility.status = "online";
+  if (facilityId === "workerHousing") state.workforce.capacity = 20 + facility.level * 15;
   computePowerStats(state);
   return state;
 }

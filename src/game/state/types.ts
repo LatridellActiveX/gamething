@@ -18,6 +18,7 @@ export type FacilityId =
   | "concreteBatchPlant"
   | "waterPump"
   | "quicklimeHarvester"
+  | "workerHousing"
   | "solarPanels"
   | "windTurbines"
   | "energyWarehouse";
@@ -59,10 +60,13 @@ export interface FacilityState {
   name: string;
   level: number;
   enabled: boolean;
+  active: boolean;
   status: FacilityStatus;
   inputRate: Partial<Record<ResourceId, number>>;
   outputRate: Partial<Record<ResourceId, number>>;
   powerConsumption: number;
+  baseUpkeep: number;
+  workersNeeded: number;
   unlocked: boolean;
   unlockRequirements?: Array<{
     facilityId: FacilityId;
@@ -81,6 +85,15 @@ export interface GameState {
     available: number;
     productionPerSecond: number;
     consumptionPerSecond: number;
+  };
+  workforce: {
+    capacity: number;
+    activeDemand: number;
+  };
+  cashFlow: {
+    upkeep: number;
+    wages: number;
+    net: number;
   };
   warehouses: {
     central: WarehouseState;

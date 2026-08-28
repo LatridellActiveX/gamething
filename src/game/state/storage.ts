@@ -79,11 +79,18 @@ function normalizeSave(state: GameState): GameState {
   }
   for (const facility of Object.values(legacy.facilities)) {
     const definition = starter.facilities[facility.id];
+    facility.baseUpkeep ??= definition.baseUpkeep;
+    facility.workersNeeded ??= definition.workersNeeded;
+    facility.active ??= facility.enabled;
+    facility.enabled = facility.active;
     facility.unlockRequirements = definition.unlockRequirements;
     facility.unlocked = !facility.unlockRequirements?.length
       || facility.unlockRequirements.every((requirement) =>
         legacy.facilities[requirement.facilityId].level >= requirement.level,
       );
   }
+  legacy.workforce ??= structuredClone(starter.workforce);
+  legacy.cashFlow ??= structuredClone(starter.cashFlow);
+  legacy.workforce.capacity = 20 + (legacy.facilities.workerHousing?.level ?? 0) * 15;
   return legacy;
 }
