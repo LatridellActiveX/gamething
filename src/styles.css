@@ -333,6 +333,9 @@ h3 {
 
 .stock-value {
   display: inline-block;
+  min-width: 7ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
   animation: stockPulse 0.6s ease-out;
 }
 

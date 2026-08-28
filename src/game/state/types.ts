@@ -16,6 +16,8 @@ export type FacilityId =
   | "blastFurnace"
   | "rollingMill"
   | "concreteBatchPlant"
+  | "waterPump"
+  | "quicklimeHarvester"
   | "solarPanels"
   | "windTurbines"
   | "energyWarehouse";

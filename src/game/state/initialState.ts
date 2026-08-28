@@ -39,8 +39,8 @@ export const INITIAL_GAME_STATE: GameState = {
   schemaVersion: 1,
   cash: 10_000,
   power: {
-    available: 8,
-    productionPerSecond: 8,
+    available: 11,
+    productionPerSecond: 11,
     consumptionPerSecond: 0,
   },
   warehouses: {
@@ -71,7 +71,9 @@ export const INITIAL_GAME_STATE: GameState = {
     blastFurnace: facility("blastFurnace", "Blast Furnace", { ironOre: 1, coal: 1 }, { ironIngot: 1 }, 2, 1_500, { steelPlate: 8 }, [{ facilityId: "ironOreMine", level: 2 }, { facilityId: "coalExcavator", level: 2 }], false),
     rollingMill: facility("rollingMill", "Rolling Mill", { ironIngot: 1, coal: 0.5 }, { steelPlate: 1 }, 2, 2_200, { concrete: 15 }, [{ facilityId: "blastFurnace", level: 2 }], false),
     concreteBatchPlant: facility("concreteBatchPlant", "Concrete Batch Plant", { quicklime: 1, water: 2 }, { concrete: 1 }, 1, 1_200, { steelPlate: 5 }),
-    solarPanels: facility("solarPanels", "Solar Panels", {}, { power: 3 }, 0, 1_800, { steelPlate: 6, concrete: 8 }),
+    waterPump: facility("waterPump", "Water Pump", {}, { water: 4 }, 1, 850, { concrete: 8 }),
+    quicklimeHarvester: facility("quicklimeHarvester", "Quicklime Harvester", { water: 1 }, { quicklime: 1 }, 1, 1_100, { concrete: 10, steelPlate: 3 }),
+    solarPanels: facility("solarPanels", "Solar Panels", {}, { power: 6 }, 0, 1_800, { steelPlate: 6, concrete: 8 }),
     windTurbines: facility("windTurbines", "Wind Turbines", {}, { power: 4 }, 0, 2_400, { steelPlate: 10, concrete: 12 }, [{ facilityId: "rollingMill", level: 2 }], false),
   },
   lastTickTimestamp: 0,
