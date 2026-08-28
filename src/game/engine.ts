@@ -178,21 +178,24 @@ export function sellResource(state: GameState, resourceId: ResourceId, requested
 
 export function purchaseResource(state: GameState, resourceId: ResourceId, requestedAmount: number): GameState {
   const inventory = state.warehouses.central.inventory[resourceId];
-  const unitPrice = getResourcePrice(resourceId) * 1.2;
+  const unitPriceCents = Math.round(getResourcePrice(resourceId) * 1.2 * 100);
   const capacity = state.warehouses.central.capacity;
   const usedSpace = RESOURCE_IDS.reduce((total, id) => total + state.warehouses.central.inventory[id].amount, 0);
   const freeSpace = Math.max(0, capacity - usedSpace);
-  const affordableAmount = Math.floor(state.cash / unitPrice);
+  const affordableAmount = unitPriceCents > 0
+    ? Math.floor(Math.max(0, Math.round(state.cash * 100)) / unitPriceCents)
+    : 0;
+  const requested = Number.isFinite(requestedAmount) ? Math.floor(requestedAmount) : 0;
   const amount = Math.min(
-    Math.max(0, Math.floor(requestedAmount)),
+    Math.max(0, requested),
     affordableAmount,
     freeSpace,
   );
 
   if (amount <= 0) return state;
 
-  const totalCost = Number((amount * unitPrice).toFixed(2));
-  state.cash -= totalCost;
+  const totalCostCents = amount * unitPriceCents;
+  state.cash = (Math.round(state.cash * 100) - totalCostCents) / 100;
   inventory.amount += amount;
   computePowerStats(state);
   return state;
