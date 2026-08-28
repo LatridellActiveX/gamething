@@ -242,9 +242,9 @@ export function upgradeFacility(state: GameState, facilityId: FacilityId): GameS
 
 export function updateFacilityUnlocks(state: GameState): GameState {
   for (const facility of Object.values(state.facilities)) {
-    const requirement = facility.unlockRequirement;
-    if (facility.unlocked || !requirement) continue;
-    if (state.facilities[requirement.facilityId].level >= requirement.level) {
+    const requirements = facility.unlockRequirements;
+    if (facility.unlocked || !requirements?.length) continue;
+    if (requirements.every((requirement) => state.facilities[requirement.facilityId].level >= requirement.level)) {
       facility.unlocked = true;
       facility.status = "offline";
     }

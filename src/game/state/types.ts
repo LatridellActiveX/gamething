@@ -62,10 +62,10 @@ export interface FacilityState {
   outputRate: Partial<Record<ResourceId, number>>;
   powerConsumption: number;
   unlocked: boolean;
-  unlockRequirement?: {
+  unlockRequirements?: Array<{
     facilityId: FacilityId;
     level: number;
-  };
+  }>;
   upgrade: {
     base: UpgradeCost;
     growth: number;

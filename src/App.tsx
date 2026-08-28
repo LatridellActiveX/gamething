@@ -268,6 +268,16 @@ function App() {
       {Object.values(game.facilities).map((facility) => {
         const cost = getFacilityUpgradeCost(facility);
         const statusClass = facility.status === "online" ? "good" : facility.status === "starved" ? "bad" : facility.status === "storage-full" ? "warn" : "muted";
+        const hasMaterials = Object.entries(cost.materials).every(([resourceId, amount]) =>
+          game.warehouses.central.inventory[resourceId as ResourceId].amount >= (amount ?? 0),
+        );
+        const canAfford = game.cash >= cost.cash && hasMaterials;
+        const unlockRequirements = facility.unlockRequirements ?? [];
+        const unlockProgress = unlockRequirements.map((requirement) => ({
+          ...requirement,
+          currentLevel: game.facilities[requirement.facilityId].level,
+          facilityName: game.facilities[requirement.facilityId].name,
+        }));
 
         return (
           <article key={facility.id} className="facility-card">
@@ -284,7 +294,35 @@ function App() {
 
             <div className="facility-meta">
               <span>Level {facility.level}</span>
-              <span>{!facility.unlocked ? `Unlocks at ${facility.unlockRequirement?.facilityId} Lv ${facility.unlockRequirement?.level}` : facility.enabled ? "Running" : "Paused"}</span>
+              <span>{facility.unlocked ? facility.enabled ? "Running" : "Paused" : "Locked"}</span>
+            </div>
+
+            {!facility.unlocked && unlockProgress.length > 0 && (
+              <div className="requirement-list unlock-requirements">
+                <label>Unlock requirements</label>
+                <div className="pill-list">
+                  {unlockProgress.map((requirement) => (
+                    <span key={requirement.facilityId} className={`pill ${requirement.currentLevel >= requirement.level ? "green" : "muted"}`}>
+                      {requirement.facilityName} Lv {requirement.level} ({requirement.currentLevel}/{requirement.level})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="requirement-list">
+              <label>Next upgrade requirements</label>
+              <div className="pill-list">
+                <span className={`pill ${game.cash >= cost.cash ? "green" : "muted"}`}>Cash: {formatMoney(cost.cash)}</span>
+                {Object.entries(cost.materials).map(([resourceId, amount]) => (
+                  <span
+                    key={resourceId}
+                    className={`pill ${game.warehouses.central.inventory[resourceId as ResourceId].amount >= (amount ?? 0) ? "green" : "muted"}`}
+                  >
+                    {RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {formatQuantity(amount ?? 0)}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="small-grid">
@@ -323,10 +361,10 @@ function App() {
               <button className="secondary" onClick={() => handleToggle(facility.id)} disabled={!facility.unlocked}>{facility.enabled ? "Pause" : "Activate"}</button>
               <button
                 onClick={() => handleUpgrade(facility.id)}
-                disabled={!facility.unlocked || game.cash < cost.cash}
-                title={game.cash < cost.cash ? "Need more cash and materials" : `Upgrade ${facility.name}`}
+                disabled={!facility.unlocked || !canAfford}
+                title={!facility.unlocked ? "Complete the unlock requirements" : !canAfford ? "Need the listed cash and materials" : `Upgrade ${facility.name}`}
               >
-                {!facility.unlocked ? "Locked • Build prerequisite" : game.cash >= cost.cash ? `Upgrade • ${formatMoney(cost.cash)}` : `Locked • ${formatMoney(cost.cash)}`}
+                {!facility.unlocked ? "Locked • See requirements" : canAfford ? `Upgrade • ${formatMoney(cost.cash)}` : "Need listed requirements"}
               </button>
             </div>
           </article>

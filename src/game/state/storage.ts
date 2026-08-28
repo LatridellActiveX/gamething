@@ -77,6 +77,13 @@ function normalizeSave(state: GameState): GameState {
       legacy.facilities[facilityId as keyof GameState["facilities"]] = starterFacility;
     }
   }
-  legacy.facilities.solarPanels.unlocked = true;
+  for (const facility of Object.values(legacy.facilities)) {
+    const definition = starter.facilities[facility.id];
+    facility.unlockRequirements = definition.unlockRequirements;
+    facility.unlocked = !facility.unlockRequirements?.length
+      || facility.unlockRequirements.every((requirement) =>
+        legacy.facilities[requirement.facilityId].level >= requirement.level,
+      );
+  }
   return legacy;
 }

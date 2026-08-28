@@ -371,6 +371,25 @@ h3 {
   font-size: 0.82rem;
 }
 
+.requirement-list {
+  margin: 0 0 1rem;
+}
+
+.unlock-requirements {
+  padding: 0.65rem;
+  border: 1px solid rgba(250, 204, 21, 0.25);
+  background: rgba(250, 204, 21, 0.05);
+}
+
+.requirement-list label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .small-grid {
   display: grid;
   gap: 0.8rem;
