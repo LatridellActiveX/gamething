@@ -194,7 +194,8 @@ function App() {
   };
 
   const handleAutoSellAmountChange = (resourceId: ResourceId, value: string) => {
-    const parsedValue = value.trim() === "" ? 0 : Number(value);
+    const parsedValue = value.trim() === "" ? 0 : Number.parseFloat(value);
+    if (Number.isNaN(parsedValue)) return;
     const current = structuredClone(gameRef.current);
     const { enabled } = current.warehouses.central.inventory[resourceId].autoSell;
     const next = setResourceAutoSell(current, resourceId, enabled, parsedValue);
