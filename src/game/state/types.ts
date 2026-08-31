@@ -51,6 +51,10 @@ export interface ResourceDefinition {
 export interface InventoryEntry {
   amount: number;
   reserved: number;
+  autoSell: {
+    enabled: boolean;
+    amount: number;
+  };
 }
 
 export interface WarehouseState {

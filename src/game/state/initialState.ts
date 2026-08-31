@@ -49,6 +49,15 @@ const facility = (
   upgrade: { base: { cash, materials }, growth: 1.75 },
 });
 
+const inventoryEntry = (amount: number) => ({
+  amount,
+  reserved: 0,
+  autoSell: {
+    enabled: false,
+    amount: 0,
+  },
+});
+
 export const INITIAL_GAME_STATE: GameState = {
   schemaVersion: 1,
   cash: 25_000,
@@ -63,25 +72,27 @@ export const INITIAL_GAME_STATE: GameState = {
     central: {
       capacity: 20000,
       inventory: {
-        power: { amount: 0, reserved: 0 },
-        coal: { amount: 2000, reserved: 0 },
-        ironOre: { amount: 80, reserved: 0 },
-        ironIngot: { amount: 0, reserved: 0 },
-        steelPlate: { amount: 100, reserved: 0 },
-        quicklime: { amount: 40, reserved: 0 },
-        water: { amount: 100, reserved: 0 },
-        concrete: { amount: 100, reserved: 0 },
-        copperOre: { amount: 0, reserved: 0 },
-        copperWire: { amount: 0, reserved: 0 },
-        silica: { amount: 0, reserved: 0 },
-        glass: { amount: 0, reserved: 0 },
-        electronics: { amount: 0, reserved: 0 },
-        phone: { amount: 0, reserved: 0 },
+        power: inventoryEntry(0),
+        coal: inventoryEntry(2000),
+        ironOre: inventoryEntry(80),
+        ironIngot: inventoryEntry(0),
+        steelPlate: inventoryEntry(100),
+        quicklime: inventoryEntry(40),
+        water: inventoryEntry(100),
+        concrete: inventoryEntry(100),
+        copperOre: inventoryEntry(0),
+        copperWire: inventoryEntry(0),
+        silica: inventoryEntry(0),
+        glass: inventoryEntry(0),
+        electronics: inventoryEntry(0),
+        phone: inventoryEntry(0),
       },
     },
     energy: {
       capacity: 250,
-      inventory: { power: { amount: 50, reserved: 0 } },
+      inventory: {
+        power: inventoryEntry(50),
+      },
     },
   },
   facilities: {
