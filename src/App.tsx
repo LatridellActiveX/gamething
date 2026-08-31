@@ -142,9 +142,9 @@ function App() {
 
   const powerBalance = useMemo(
     () => ({
-      available: game.warehouses.energy.inventory.power.amount,
       production: game.power.productionPerSecond,
       consumption: game.power.consumptionPerSecond,
+      surplus: game.power.productionPerSecond - game.power.consumptionPerSecond,
     }),
     [game],
   );
@@ -173,9 +173,10 @@ function App() {
 
   const handleToggle = (facilityId: FacilityId) => {
     const next = toggleFacility(structuredClone(gameRef.current), facilityId);
+    gameRef.current = next;
     setGame(next);
     addLog(
-      `${gameRef.current.facilities[facilityId].name} ${next.facilities[facilityId].active ? "activated" : "paused"}.`,
+      `${next.facilities[facilityId].name} ${next.facilities[facilityId].active ? "activated" : "paused"}.`,
     );
   };
 
@@ -248,8 +249,8 @@ function App() {
             <strong>{formatMoney(game.cash)}</strong>
           </div>
           <div className="kpi accent-green">
-            <span>Power</span>
-            <strong>{powerBalance.available.toFixed(0)} / {game.warehouses.energy.capacity} MW</strong>
+            <span>Live Power</span>
+            <strong>{powerBalance.production.toFixed(1)} MW</strong>
           </div>
           <div className="kpi accent-orange">
             <span>Capacity Used</span>
@@ -276,8 +277,10 @@ function App() {
             <strong className="danger">{formatRate(powerBalance.consumption)}</strong>
           </div>
           <div className="metric-row">
-            <span>Available</span>
-            <strong>{powerBalance.available.toFixed(1)} / {game.warehouses.energy.capacity} MW</strong>
+            <span>Grid surplus</span>
+            <strong className={powerBalance.surplus >= 0 ? "positive" : "danger"}>
+              {powerBalance.surplus >= 0 ? "+" : ""}{powerBalance.surplus.toFixed(1)} MW
+            </strong>
           </div>
         </div>
       </section>
@@ -590,6 +593,24 @@ function App() {
     </div>
   );
 
+  // Render exactly one page for the selected tab. Keeping this decision in one
+  // switch makes it impossible for two tab views to appear together on small
+  // screens (or after a navigation update).
+  const renderActivePage = () => {
+    switch (tab) {
+      case "dashboard":
+        return renderDashboard();
+      case "facilities":
+        return renderFacilities();
+      case "warehouse":
+        return renderWarehouse();
+      case "market":
+        return renderMarket();
+      case "settings":
+        return renderSettings();
+    }
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -608,7 +629,7 @@ function App() {
           </div>
           <div className="mini-stat">
             <span>Power</span>
-            <strong>{powerBalance.available.toFixed(0)} / {powerBalance.consumption.toFixed(0)} MW</strong>
+            <strong>{powerBalance.production.toFixed(0)} / {powerBalance.consumption.toFixed(0)} MW</strong>
           </div>
           <div className="mini-stat">
             <span>Warehouse Used</span>
@@ -621,12 +642,8 @@ function App() {
         </div>
       </header>
 
-      <main className="content-shell">
-        {tab === "dashboard" && renderDashboard()}
-        {tab === "facilities" && renderFacilities()}
-        {tab === "warehouse" && renderWarehouse()}
-        {tab === "market" && renderMarket()}
-        {tab === "settings" && renderSettings()}
+      <main className="content-shell" key={tab} aria-label={`${tab} page`}>
+        {renderActivePage()}
       </main>
 
       <nav className="mobile-tabbar" aria-label="Main navigation">
@@ -634,7 +651,10 @@ function App() {
           <button
             key={item.id}
             className={tab === item.id ? "active" : ""}
-            onClick={() => setTab(item.id)}
+            onClick={() => {
+              setSelectedFacilityId(null);
+              setTab(item.id);
+            }}
             type="button"
           >
             {item.label}

@@ -6,7 +6,12 @@ export type ResourceId =
   | "steelPlate"
   | "quicklime"
   | "water"
-  | "concrete";
+  | "concrete"
+  | "copperOre"
+  | "copperWire"
+  | "silica"
+  | "glass"
+  | "electronics";
 
 export type FacilityId =
   | "warehouse"
@@ -21,7 +26,11 @@ export type FacilityId =
   | "workerHousing"
   | "solarPanels"
   | "windTurbines"
-  | "energyWarehouse";
+  | "copperMine"
+  | "wireMill"
+  | "silicaQuarry"
+  | "glassworks"
+  | "electronicsAssembler";
 
 export type FacilityStatus = "online" | "starved" | "storage-full" | "offline";
 export type MaterialResourceId = Exclude<ResourceId, "power">;
@@ -59,6 +68,11 @@ export interface UpgradeCost {
   materials: Partial<Record<ResourceId, number>>;
 }
 
+export interface FacilityUnlockRequirement {
+  facilityId: FacilityId;
+  level: number;
+}
+
 export interface FacilityState {
   id: FacilityId;
   name: string;
@@ -72,10 +86,8 @@ export interface FacilityState {
   baseUpkeep: number;
   workersNeeded: number;
   unlocked: boolean;
-  unlockRequirements?: Array<{
-    facilityId: FacilityId;
-    level: number;
-  }>;
+  // An empty list means the facility is available immediately.
+  unlockRequirements: FacilityUnlockRequirement[];
   upgrade: {
     base: UpgradeCost;
     growth: number;

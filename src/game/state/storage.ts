@@ -72,11 +72,17 @@ function normalizeSave(state: GameState): GameState {
     legacy.warehouses.energy = structuredClone(starter.warehouses.energy);
     legacy.warehouses.energy.inventory.power.amount = legacy.warehouses.central.inventory.power.amount;
   }
+  for (const [resourceId, starterEntry] of Object.entries(starter.warehouses.central.inventory)) {
+    legacy.warehouses.central.inventory[resourceId as keyof typeof legacy.warehouses.central.inventory] ??= structuredClone(starterEntry);
+  }
   for (const [facilityId, starterFacility] of Object.entries(starter.facilities)) {
     if (!legacy.facilities[facilityId as keyof GameState["facilities"]]) {
       legacy.facilities[facilityId as keyof GameState["facilities"]] = starterFacility;
     }
   }
+  // Energy storage was removed when power became an instantaneous grid value.
+  // Drop the old catalog entry so migrated saves cannot build a battery.
+  delete (legacy.facilities as Record<string, unknown>).energyWarehouse;
   for (const facility of Object.values(legacy.facilities)) {
     const definition = starter.facilities[facility.id];
     facility.baseUpkeep ??= definition.baseUpkeep;
@@ -84,7 +90,7 @@ function normalizeSave(state: GameState): GameState {
     facility.active ??= facility.enabled;
     facility.enabled = facility.active;
     facility.unlockRequirements = definition.unlockRequirements;
-    facility.unlocked = !facility.unlockRequirements?.length
+    facility.unlocked = facility.unlockRequirements.length === 0
       || facility.unlockRequirements.every((requirement) =>
         legacy.facilities[requirement.facilityId].level >= requirement.level,
       );

@@ -12,6 +12,11 @@ const RESOURCE_IDS: ResourceId[] = [
   "quicklime",
   "water",
   "concrete",
+  "copperOre",
+  "copperWire",
+  "silica",
+  "glass",
+  "electronics",
 ];
 const MATERIAL_RESOURCE_IDS = RESOURCE_IDS.filter((resourceId): resourceId is Exclude<ResourceId, "power"> => resourceId !== "power");
 
@@ -41,10 +46,11 @@ export function computePowerStats(state: GameState) {
   }
 
 
-  //isnt this redundant if we have available and production per second?
+  // "Available" is live surplus, not a battery level. Power is generated and
+  // consumed in the same tick; nothing is accumulated between ticks.
   state.power.productionPerSecond = production;
   state.power.consumptionPerSecond = consumption;
-  state.power.available = production;
+  state.power.available = production - consumption;
 }
 
 export const WAGE_RATE = 1;
@@ -295,10 +301,6 @@ export function upgradeFacility(state: GameState, facilityId: FacilityId): GameS
   if (facilityId === "warehouse") {
     state.warehouses.central.capacity += 200;
   }
-  if (facilityId === "energyWarehouse") {
-    state.warehouses.energy.capacity += 50;
-  }
-
   facility.active = true;
   facility.enabled = true;
   facility.status = "online";
@@ -310,7 +312,7 @@ export function upgradeFacility(state: GameState, facilityId: FacilityId): GameS
 export function updateFacilityUnlocks(state: GameState): GameState {
   for (const facility of Object.values(state.facilities)) {
     const requirements = facility.unlockRequirements;
-    if (facility.unlocked || !requirements?.length) continue;
+    if (facility.unlocked || requirements.length === 0) continue;
     if (requirements.every((requirement) => state.facilities[requirement.facilityId].level >= requirement.level)) {
       facility.unlocked = true;
       facility.status = "offline";
