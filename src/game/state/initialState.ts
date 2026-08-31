@@ -14,6 +14,7 @@ export const RESOURCE_DEFINITIONS: Record<ResourceId, ResourceDefinition> = {
   silica: { name: "Silica", unit: "t", baseValue: 16, category: "raw" },
   glass: { name: "Glass", unit: "t", baseValue: 85, category: "refined" },
   electronics: { name: "Electronics", unit: "t", baseValue: 240, category: "refined" },
+  phone: { name: "Phone", unit: "unit", baseValue: 420, category: "consumer" },
 };
 
 // This file is the player's starting blueprint for the game.
@@ -75,6 +76,7 @@ export const INITIAL_GAME_STATE: GameState = {
         silica: { amount: 0, reserved: 0 },
         glass: { amount: 0, reserved: 0 },
         electronics: { amount: 0, reserved: 0 },
+        phone: { amount: 0, reserved: 0 },
       },
     },
     energy: {
@@ -102,6 +104,7 @@ export const INITIAL_GAME_STATE: GameState = {
     silicaQuarry: facility("silicaQuarry", "Silica Quarry", {}, { silica: 1.5 }, 1, 950, { concrete: 10 }, [], true, 2, 2),
     glassworks: facility("glassworks", "Glassworks", { silica: 1, water: 1 }, { glass: 1 }, 2, 1_900, { steelPlate: 8, concrete: 12 }, [{ facilityId: "silicaQuarry", level: 2 }], false, 5, 3),
     electronicsAssembler: facility("electronicsAssembler", "Electronics Assembler", { copperWire: 1, glass: 0.5, steelPlate: 0.25 }, { electronics: 1 }, 3, 2_800, { steelPlate: 12, concrete: 15 }, [{ facilityId: "wireMill", level: 2 }, { facilityId: "glassworks", level: 2 }], false, 8, 5),
+    phoneFactory: facility("phoneFactory", "Phone Factory", { electronics: 1, steelPlate: 0.5 }, { phone: 1 }, 4, 4_500, { concrete: 18, steelPlate: 12 }, [{ facilityId: "electronicsAssembler", level: 2 }], false, 10, 6),
   },
   lastTickTimestamp: 0,
   lastSavedTimestamp: 0,

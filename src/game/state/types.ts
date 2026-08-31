@@ -11,7 +11,8 @@ export type ResourceId =
   | "copperWire"
   | "silica"
   | "glass"
-  | "electronics";
+  | "electronics"
+  | "phone";
 
 export type FacilityId =
   | "warehouse"
@@ -30,7 +31,8 @@ export type FacilityId =
   | "wireMill"
   | "silicaQuarry"
   | "glassworks"
-  | "electronicsAssembler";
+  | "electronicsAssembler"
+  | "phoneFactory";
 
 export type FacilityStatus = "online" | "starved" | "storage-full" | "offline";
 export type MaterialResourceId = Exclude<ResourceId, "power">;
@@ -43,7 +45,7 @@ export interface ResourceDefinition {
   name: string;
   unit: string;
   baseValue: number;
-  category: "energy" | "raw" | "refined" | "construction";
+  category: "energy" | "raw" | "refined" | "construction" | "consumer";
 }
 
 export interface InventoryEntry {

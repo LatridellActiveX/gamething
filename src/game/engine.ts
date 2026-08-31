@@ -17,6 +17,7 @@ const RESOURCE_IDS: ResourceId[] = [
   "silica",
   "glass",
   "electronics",
+  "phone",
 ];
 const MATERIAL_RESOURCE_IDS = RESOURCE_IDS.filter((resourceId): resourceId is Exclude<ResourceId, "power"> => resourceId !== "power");
 
@@ -163,6 +164,7 @@ export function tickGameState(state: GameState, seconds: number): GameState {
       let canStoreAllOutputs = true;
       for (const [resourceId, outputRate] of Object.entries(facility.outputRate)) {
         if (resourceId === "power") continue;
+        if (resourceId === "phone") continue;
         const outputAmount = outputRate * facility.level;
         const futureTotal = storageUsedBefore + outputAmount;
         if (futureTotal > warehouse.capacity) {
@@ -183,9 +185,13 @@ export function tickGameState(state: GameState, seconds: number): GameState {
 
       for (const [resourceId, rate] of Object.entries(facility.outputRate)) {
         const key = resourceId as ResourceId;
-        if (key !== "power") {
-          warehouse.inventory[key].amount += rate * facility.level;
+        if (key === "power") continue;
+        if (key === "phone") {
+          const phoneUnits = rate * facility.level;
+          state.cash += Math.round((RESOURCE_DEFINITIONS.phone.baseValue * 0.85) * phoneUnits);
+          continue;
         }
+        warehouse.inventory[key].amount += rate * facility.level;
       }
 
       facility.status = "online";
