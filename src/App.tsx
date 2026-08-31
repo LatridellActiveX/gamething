@@ -12,6 +12,7 @@ import {
   getResourcePrice,
   purchaseResource,
   sellResource,
+  setResourceAutoSell,
   tickGameState,
   toggleFacility,
   upgradeFacility,
@@ -181,12 +182,39 @@ function App() {
   };
 
   const handleSell = (resourceId: ResourceId, quantity: number) => {
-    const next = sellResource(structuredClone(gameRef.current), resourceId, quantity);
+    const current = structuredClone(gameRef.current);
+    const startingAmount = current.warehouses.central.inventory[resourceId].amount;
+    const startingCash = current.cash;
+    const next = sellResource(current, resourceId, quantity);
+    const sold = Math.max(0, startingAmount - next.warehouses.central.inventory[resourceId].amount);
+    const revenue = Math.max(0, next.cash - startingCash);
+    gameRef.current = next;
     setGame(next);
-    const sold = Math.min(quantity, gameRef.current.warehouses.central.inventory[resourceId].amount);
     if (sold > 0) {
-      addLog(`Sold ${formatQuantity(sold)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(sold * getResourcePrice(resourceId))}.`);
+      addLog(`Sold ${formatQuantity(sold)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(revenue)}.`);
     }
+  };
+
+  const handleAutoSellAmountChange = (resourceId: ResourceId, value: string) => {
+    const parsedValue = value.trim() === "" ? 0 : Number.parseFloat(value);
+    if (Number.isNaN(parsedValue)) return;
+    const current = structuredClone(gameRef.current);
+    const { enabled } = current.warehouses.central.inventory[resourceId].autoSell;
+    const next = setResourceAutoSell(current, resourceId, enabled, parsedValue);
+    gameRef.current = next;
+    setGame(next);
+  };
+
+  const handleAutoSellToggle = (resourceId: ResourceId) => {
+    const current = structuredClone(gameRef.current);
+    const autoSell = current.warehouses.central.inventory[resourceId].autoSell;
+    const nextEnabled = !autoSell.enabled;
+    const next = setResourceAutoSell(current, resourceId, nextEnabled, autoSell.amount);
+    gameRef.current = next;
+    setGame(next);
+    addLog(
+      `${RESOURCE_DEFINITIONS[resourceId].name} autosell ${nextEnabled ? `enabled at ${formatQuantity(next.warehouses.central.inventory[resourceId].autoSell.amount)}/tick` : "disabled"}.`,
+    );
   };
 
   const handleBuy = (resourceId: ResourceId, quantity: number) => {
@@ -497,12 +525,14 @@ function App() {
             <th>Stock</th>
             <th>Rate</th>
             <th>Capacity</th>
+            <th>Autosell</th>
             <th>Sell</th>
           </tr>
         </thead>
         <tbody>
           {resourceRows.map(({ resourceId, name, amount, rate, price }) => {
             const stockPercent = (amount / storage.capacity) * 100;
+            const autoSell = game.warehouses.central.inventory[resourceId].autoSell;
             return (
               <tr key={resourceId}>
                 <td>
@@ -520,6 +550,27 @@ function App() {
                     <div className="progress-bar">
                       <span style={{ width: `${Math.min(stockPercent, 100)}%` }} />
                     </div>
+                  </div>
+                </td>
+                <td>
+                  <div className="autosell-controls">
+                    <label className="autosell-toggle">
+                      <input
+                        type="checkbox"
+                        checked={autoSell.enabled}
+                        onChange={() => handleAutoSellToggle(resourceId)}
+                      />
+                      <span>Enabled</span>
+                    </label>
+                    <input
+                      className="autosell-input"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={autoSell.amount}
+                      onChange={(event) => handleAutoSellAmountChange(resourceId, event.target.value)}
+                    />
+                    <small className="muted">units/tick</small>
                   </div>
                 </td>
                 <td>
