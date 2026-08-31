@@ -26,6 +26,10 @@ export type FacilityId =
 export type FacilityStatus = "online" | "starved" | "storage-full" | "offline";
 export type MaterialResourceId = Exclude<ResourceId, "power">;
 
+// Learning note:
+// This file is the contract for the whole game state. If a new feature (like
+// workers, build queues, or new resources) is added, it usually starts here.
+// Keeping the schema explicit makes the rest of the game easier to reason about.
 export interface ResourceDefinition {
   name: string;
   unit: string;

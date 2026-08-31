@@ -1,6 +1,8 @@
 import { RESOURCE_DEFINITIONS } from "./state/initialState";
 import type { FacilityId, GameState, ResourceId } from "./state/types";
 
+
+/**Resource ID array  */
 const RESOURCE_IDS: ResourceId[] = [
   "power",
   "coal",
@@ -24,6 +26,10 @@ export function computeWarehouseSummary(state: GameState) {
   };
 }
 
+// This function is the heart of the "power grid" model.
+// Every tick, we sum all active production and compare it against each active
+// facility's power draw. This keeps the simulation deterministic and easy to
+// debug in a learning project.
 export function computePowerStats(state: GameState) {
   let production = 0;
   let consumption = 0;
@@ -34,6 +40,8 @@ export function computePowerStats(state: GameState) {
     consumption += facility.powerConsumption * facility.level;
   }
 
+
+  //isnt this redundant if we have available and production per second?
   state.power.productionPerSecond = production;
   state.power.consumptionPerSecond = consumption;
   state.power.available = production;
@@ -51,6 +59,9 @@ export function computeFinancials(state: GameState) {
   return state.cashFlow;
 }
 
+// Capacity balancing is a safety rule: if workers or power demand exceed
+// available capacity, the least valuable active facility is shut down until the
+// system becomes stable again.
 function stabilizeCapacity(state: GameState) {
   const facilities = Object.values(state.facilities);
   while (true) {
@@ -97,6 +108,9 @@ export function getFacilityUpgradeCost(facilityState: GameState["facilities"][Fa
   };
 }
 
+// The main tick loop advances the whole economy by one second at a time.
+// Production, storage checks, finance, and facility shutdowns are all resolved
+// here so the UI only needs to display state instead of calculating rules.
 export function tickGameState(state: GameState, seconds: number): GameState {
   const dt = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   updateFacilityUnlocks(state);

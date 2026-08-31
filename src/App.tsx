@@ -18,6 +18,10 @@ import {
   updateFacilityUnlocks,
 } from "./game/engine";
 
+
+/** Tab Items */
+
+
 const TAB_ITEMS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "facilities", label: "Facilities" },
@@ -28,15 +32,32 @@ const TAB_ITEMS = [
 
 type TabId = (typeof TAB_ITEMS)[number]["id"];
 
-const formatMoney = (value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-const formatRate = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(2)}/s`;
-const formatQuantity = (value: number) => `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-const formatDuration = (seconds: number) => {
-  const wholeSeconds = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(wholeSeconds / 60);
-  return `${minutes}m ${String(wholeSeconds % 60).padStart(2, "0")}s`;
+const formatMoney = (value: number) => {
+  const roundedValue = Math.round(value);
+  return `$${roundedValue.toLocaleString()}`;
 };
 
+const formatRate = (value: number) => {
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}/s`;
+};
+
+const formatQuantity = (value: number) => {
+  const roundedValue = Math.round(value * 100) / 100;
+  return roundedValue.toLocaleString();
+};
+
+const formatDuration = (seconds: number) => {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+
+  return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
+};
+
+// The app is intentionally structured as a thin UI layer over the game state.
+// The engine owns the simulation rules, while React simply renders state and
+// forwards player actions like buying, upgrading, and toggling buildings.
 function App() {
   const [game, setGame] = useState<GameState>(() => {
     try {
@@ -47,10 +68,15 @@ function App() {
     }
   });
   const [tab, setTab] = useState<TabId>("dashboard");
+
   const [importText, setImportText] = useState("");
+
   const [renderNonce, setRenderNonce] = useState(0);
+
   const [upgradeNotice, setUpgradeNotice] = useState("Factories online and ready.");
+
   const [selectedFacilityId, setSelectedFacilityId] = useState<FacilityId | null>(null);
+  
   const [log, setLog] = useState<string[]>([
     "System online. Industrial Frontier booted.",
     "Power network and logistics are operating in nominal state.",
@@ -203,6 +229,8 @@ function App() {
     addLog("Save reset to the starter state.");
   };
 
+  // This function is the primary dashboard view. It pulls together the core
+  // KPIs of the game: cash, power, storage, and the production network.
   const renderDashboard = () => (
     <div className="panel-grid">
       <section className="panel wide">

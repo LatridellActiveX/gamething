@@ -11,6 +11,9 @@ export const RESOURCE_DEFINITIONS: Record<ResourceId, ResourceDefinition> = {
   concrete: { name: "Concrete", unit: "t", baseValue: 30, category: "construction" },
 };
 
+// This file is the player's starting blueprint for the game.
+// It defines the resources, the facilities, and the initial economy, so a
+// beginner can see exactly what the first production loop looks like.
 const facility = (
   id: FacilityId,
   name: string,
