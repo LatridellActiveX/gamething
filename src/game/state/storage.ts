@@ -72,12 +72,15 @@ function normalizeSave(state: GameState): GameState {
     legacy.warehouses.energy = structuredClone(starter.warehouses.energy);
     legacy.warehouses.energy.inventory.power.amount = legacy.warehouses.central.inventory.power.amount;
   }
+  legacy.warehouses.energy.inventory.power.reserved ??= starter.warehouses.energy.inventory.power.reserved;
+  legacy.warehouses.energy.inventory.power.autoSell ??= structuredClone(starter.warehouses.energy.inventory.power.autoSell);
   for (const [resourceId, starterEntry] of Object.entries(starter.warehouses.central.inventory)) {
     const inventoryEntry = legacy.warehouses.central.inventory[resourceId as keyof typeof legacy.warehouses.central.inventory];
     if (!inventoryEntry) {
       legacy.warehouses.central.inventory[resourceId as keyof typeof legacy.warehouses.central.inventory] = structuredClone(starterEntry);
       continue;
     }
+    inventoryEntry.reserved ??= starterEntry.reserved;
     inventoryEntry.autoSell ??= structuredClone(starterEntry.autoSell);
     inventoryEntry.autoSell.enabled ??= starterEntry.autoSell.enabled;
     inventoryEntry.autoSell.amount ??= starterEntry.autoSell.amount;

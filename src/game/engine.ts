@@ -236,6 +236,19 @@ function applyAutoSell(state: GameState) {
   }
 }
 
+export function setResourceAutoSell(
+  state: GameState,
+  resourceId: ResourceId,
+  enabled: boolean,
+  requestedAmount: number,
+): GameState {
+  const storage = state.warehouses.central.inventory[resourceId];
+  const amount = Number.isFinite(requestedAmount) ? Math.max(0, Math.round(requestedAmount * 100) / 100) : 0;
+  storage.autoSell.enabled = enabled;
+  storage.autoSell.amount = amount;
+  return state;
+}
+
 export function applyOfflineProgress(state: GameState, now = Date.now()) {
   const elapsedSeconds = Math.max(0, Math.floor((now - state.lastSavedTimestamp) / 1000));
   if (elapsedSeconds <= 0) {
