@@ -182,10 +182,12 @@ function App() {
   };
 
   const handleSell = (resourceId: ResourceId, quantity: number) => {
-    const next = sellResource(structuredClone(gameRef.current), resourceId, quantity);
+    const current = structuredClone(gameRef.current);
+    const startingAmount = current.warehouses.central.inventory[resourceId].amount;
+    const next = sellResource(current, resourceId, quantity);
+    const sold = Math.max(0, startingAmount - next.warehouses.central.inventory[resourceId].amount);
     gameRef.current = next;
     setGame(next);
-    const sold = Math.min(quantity, gameRef.current.warehouses.central.inventory[resourceId].amount);
     if (sold > 0) {
       addLog(`Sold ${formatQuantity(sold)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(sold * getResourcePrice(resourceId))}.`);
     }
