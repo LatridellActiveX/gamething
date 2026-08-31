@@ -597,18 +597,26 @@ function App() {
   // switch makes it impossible for two tab views to appear together on small
   // screens (or after a navigation update).
   const renderActivePage = () => {
-    switch (tab) {
-      case "dashboard":
-        return renderDashboard();
-      case "facilities":
-        return renderFacilities();
-      case "warehouse":
-        return renderWarehouse();
-      case "market":
-        return renderMarket();
-      case "settings":
-        return renderSettings();
-    }
+    const pageContent = (() => {
+      switch (tab) {
+        case "dashboard":
+          return renderDashboard();
+        case "facilities":
+          return renderFacilities();
+        case "warehouse":
+          return renderWarehouse();
+        case "market":
+          return renderMarket();
+        case "settings":
+          return renderSettings();
+      }
+    })();
+
+    return (
+      <section className="tab-page" key={tab} aria-label={`${tab} page`}>
+        {pageContent}
+      </section>
+    );
   };
 
   return (
@@ -642,7 +650,7 @@ function App() {
         </div>
       </header>
 
-      <main className="content-shell" key={tab} aria-label={`${tab} page`}>
+      <main className="content-shell">
         {renderActivePage()}
       </main>
 
