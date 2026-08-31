@@ -23,7 +23,7 @@ import {
 
 
 const TAB_ITEMS = [
-  { id: "dashboard", label: "Dashboard" },
+  { id: "dashboard", label: "Operations Console" },
   { id: "facilities", label: "Facilities" },
   { id: "warehouse", label: "Warehouse" },
   { id: "market", label: "Market" },
@@ -619,36 +619,40 @@ function App() {
     );
   };
 
+  const isConsolePage = tab === "dashboard";
+
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand-wrap">
-          <div className="brand-mark">IF</div>
-          <div>
-            <p className="eyebrow">Industrial Frontier</p>
-            <h1>Operations Console</h1>
+      {isConsolePage && (
+        <header className="topbar">
+          <div className="brand-wrap">
+            <div className="brand-mark">IF</div>
+            <div>
+              <p className="eyebrow">Industrial Frontier</p>
+              <h1>Operations Console</h1>
+            </div>
           </div>
-        </div>
 
-        <div className="topbar-stats">
-          <div className="mini-stat">
-            <span>Cash</span>
-            <strong>{formatMoney(game.cash)}</strong>
+          <div className="topbar-stats">
+            <div className="mini-stat">
+              <span>Cash</span>
+              <strong>{formatMoney(game.cash)}</strong>
+            </div>
+            <div className="mini-stat">
+              <span>Power</span>
+              <strong>{powerBalance.production.toFixed(0)} / {powerBalance.consumption.toFixed(0)} MW</strong>
+            </div>
+            <div className="mini-stat">
+              <span>Warehouse Used</span>
+              <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
+            </div>
+            <div className="mini-stat">
+              <span>Workforce</span>
+              <strong>{game.workforce.activeDemand} / {game.workforce.capacity}</strong>
+            </div>
           </div>
-          <div className="mini-stat">
-            <span>Power</span>
-            <strong>{powerBalance.production.toFixed(0)} / {powerBalance.consumption.toFixed(0)} MW</strong>
-          </div>
-          <div className="mini-stat">
-            <span>Warehouse Used</span>
-            <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
-          </div>
-          <div className="mini-stat">
-            <span>Workforce</span>
-            <strong>{game.workforce.activeDemand} / {game.workforce.capacity}</strong>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="content-shell">
         {renderActivePage()}
