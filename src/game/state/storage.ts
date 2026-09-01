@@ -79,11 +79,6 @@ function normalizeSave(state: GameState): GameState {
     legacy.warehouses.energy = structuredClone(starter.warehouses.energy);
     legacy.warehouses.energy.inventory.power.amount = legacy.warehouses.central.inventory.power?.amount ?? 0;
   }
-<<<<<<< HEAD
-
-  for (const [resourceId, starterEntry] of Object.entries(starter.warehouses.central.inventory)) {
-    legacy.warehouses.central.inventory[resourceId as ResourceId] ??= structuredClone(starterEntry);
-=======
   legacy.warehouses.energy.inventory.power.reserved ??= starter.warehouses.energy.inventory.power.reserved;
   legacy.warehouses.energy.inventory.power.autoSell ??= structuredClone(starter.warehouses.energy.inventory.power.autoSell);
   for (const [resourceId, starterEntry] of Object.entries(starter.warehouses.central.inventory)) {
@@ -96,7 +91,6 @@ function normalizeSave(state: GameState): GameState {
     inventoryEntry.autoSell ??= structuredClone(starterEntry.autoSell);
     inventoryEntry.autoSell.enabled ??= starterEntry.autoSell.enabled;
     inventoryEntry.autoSell.amount ??= starterEntry.autoSell.amount;
->>>>>>> origin/master
   }
 
   for (const [facilityId, starterFacility] of Object.entries(starter.facilities)) {

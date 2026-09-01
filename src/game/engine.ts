@@ -236,16 +236,8 @@ export function toggleFacility(state: GameState, facilityId: FacilityId): GameSt
 }
 
 export function sellResource(state: GameState, resourceId: ResourceId, requestedAmount: number): GameState {
-<<<<<<< HEAD
-  const storage = state.warehouses.central.inventory[resourceId];
-  const amount = Math.min(Math.max(0, requestedAmount), storage?.amount ?? 0);
-  if (amount <= 0) return state;
-  state.cash += Number((amount * getResourcePrice(resourceId)).toFixed(2));
-  storage.amount -= amount;
-=======
   const amount = processResourceSale(state, resourceId, requestedAmount);
   if (amount <= 0) return state;
->>>>>>> origin/master
   computePowerStats(state);
   return state;
 }

@@ -59,11 +59,11 @@ const FACILITY_FILTERS: Array<{ value: FacilityCatalogFilter; label: string }> =
   { value: "tier-5", label: "Tier 5" },
 ];
 const FACILITY_TIER_LABELS: Record<number, string> = {
-  1: "Tier 1 · Extraction & utilities",
-  2: "Tier 2 · Primary processing",
-  3: "Tier 3 · Component fabrication",
-  4: "Tier 4 · Advanced manufacturing",
-  5: "Tier 5 · Frontier projects",
+  1: "Tier 1 ï¿½ Extraction & utilities",
+  2: "Tier 2 ï¿½ Primary processing",
+  3: "Tier 3 ï¿½ Component fabrication",
+  4: "Tier 4 ï¿½ Advanced manufacturing",
+  5: "Tier 5 ï¿½ Frontier projects",
 };
 
 const formatMoney = (value: number) => `$${Math.round(value).toLocaleString()}`;
@@ -176,16 +176,6 @@ function App() {
 
   const handleSell = (resourceId: ResourceId, quantity: number) => {
     const current = structuredClone(gameRef.current);
-<<<<<<< HEAD
-    const startingAmount = current.warehouses.central.inventory[resourceId]?.amount ?? 0;
-    const next = sellResource(current, resourceId, quantity);
-    const sold = Math.max(0, startingAmount - (next.warehouses.central.inventory[resourceId]?.amount ?? 0));
-    if (sold <= 0) return;
-    gameRef.current = next;
-    setGame(next);
-    addLog(`Sold ${formatQuantity(sold)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(sold * getResourcePrice(resourceId))}.`);
-  };
-=======
     const startingAmount = current.warehouses.central.inventory[resourceId].amount;
     const startingCash = current.cash;
     const next = sellResource(current, resourceId, quantity);
@@ -219,8 +209,6 @@ function App() {
       `${RESOURCE_DEFINITIONS[resourceId].name} autosell ${nextEnabled ? `enabled at ${formatQuantity(next.warehouses.central.inventory[resourceId].autoSell.amount)}/tick` : "disabled"}.`,
     );
   };
-
->>>>>>> origin/master
   const handleBuy = (resourceId: ResourceId, quantity: number) => {
     const current = structuredClone(gameRef.current);
     const startingAmount = current.warehouses.central.inventory[resourceId]?.amount ?? 0;
@@ -270,11 +258,6 @@ function App() {
       <section className="panel wide">
         <div className="panel-header"><div><p className="eyebrow">Overview</p><h2>Factory performance</h2></div><span className="status-banner">{upgradeNotice}</span></div>
         <div className="kpis">
-<<<<<<< HEAD
-          <div className="kpi"><span>Cash</span><strong>{formatMoney(game.cash)}</strong></div>
-          <div className="kpi accent-green"><span>Live Power</span><strong>{powerBalance.production.toFixed(1)} MW</strong></div>
-          <div className="kpi accent-orange"><span>Capacity Used</span><strong>{storage.used.toFixed(0)} / {storage.capacity}</strong></div>
-=======
           <div className="kpi">
             <span className="kpi-icon">ðŸ’°</span>
             <span>Cash</span>
@@ -290,7 +273,6 @@ function App() {
             <span>Storage</span>
             <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
           </div>
->>>>>>> origin/master
         </div>
       </section>
       <section className="panel">
@@ -327,7 +309,7 @@ function App() {
             <button key={facility.id} className={`map-node ${facility.active ? "active" : "inactive"}`} onClick={() => setSelectedFacilityId(facility.id)} type="button">
               <span className="map-node-light" />
               <strong>{facility.name}</strong>
-              <small>LV {facility.level} · T{facility.tier} · {facility.active ? "ACTIVE" : "OFFLINE"}</small>
+              <small>LV {facility.level} ï¿½ T{facility.tier} ï¿½ {facility.active ? "ACTIVE" : "OFFLINE"}</small>
             </button>
           ))}
           {builtFacilities.length === 0 && <p className="muted">No facilities built. Use the catalog below to deploy your first assets.</p>}
@@ -343,7 +325,7 @@ function App() {
             const isCollapsed = collapsedTiers[tier] ?? false;
             return (
               <section className="panel" key={tier}>
-                <div className="panel-header"><div><p className="eyebrow">Tier {tier}</p><h2>{FACILITY_TIER_LABELS[tier] ?? `Tier ${tier}`}</h2></div><button className="secondary small" onClick={() => toggleTierCollapse(tier)} type="button">{isCollapsed ? "Expand" : "Collapse"} · {facilities.length}</button></div>
+                <div className="panel-header"><div><p className="eyebrow">Tier {tier}</p><h2>{FACILITY_TIER_LABELS[tier] ?? `Tier ${tier}`}</h2></div><button className="secondary small" onClick={() => toggleTierCollapse(tier)} type="button">{isCollapsed ? "Expand" : "Collapse"} ï¿½ {facilities.length}</button></div>
                 {!isCollapsed && <div className="facility-grid">{facilities.map((facility) => {
                   const cost = getFacilityUpgradeCost(facility);
                   const statusClass = facility.status === "online" ? "good" : facility.status === "starved" ? "bad" : facility.status === "storage-full" ? "warn" : "muted";
@@ -357,7 +339,7 @@ function App() {
                       {!facility.unlocked && unlockProgress.length > 0 && <div className="requirement-list unlock-requirements"><label>Unlock requirements</label><div className="pill-list">{unlockProgress.map((requirement) => <span key={`${facility.id}-${requirement.facilityId}`} className={`pill ${requirement.currentLevel >= requirement.level ? "green" : "muted"}`}>{requirement.facilityName} Lv {requirement.level} ({requirement.currentLevel}/{requirement.level})</span>)}</div></div>}
                       <div className="requirement-list"><label>{facility.level === 0 ? "Build requirements" : "Next upgrade requirements"}</label><div className="pill-list"><span className={`pill ${game.cash >= cost.cash ? "green" : "muted"}`}>Cash: {formatMoney(cost.cash)}</span>{Object.entries(cost.materials).map(([resourceId, amount]) => <span key={resourceId} className={`pill ${(game.warehouses.central.inventory[resourceId as ResourceId]?.amount ?? 0) >= (amount ?? 0) ? "green" : "muted"}`}>{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {formatQuantity(amount ?? 0)}</span>)}<span className="pill">Workers: {facility.workersNeeded * Math.max(1, facility.level)}</span><span className="pill">Upkeep: {formatMoney(facility.baseUpkeep * Math.max(1, facility.level))}/s</span></div></div>
                       <div className="small-grid"><div><label>Inputs</label><div className="pill-list">{Object.entries(facility.inputRate).length === 0 ? <span className="pill muted">None</span> : Object.entries(facility.inputRate).map(([resourceId, rate]) => <span key={resourceId} className="pill">{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {rate.toFixed(2)}/s</span>)}</div></div><div><label>Outputs</label><div className="pill-list">{Object.entries(facility.outputRate).length === 0 ? <span className="pill muted">None</span> : Object.entries(facility.outputRate).map(([resourceId, rate]) => <span key={resourceId} className="pill green">{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {rate.toFixed(2)}/s</span>)}</div></div></div>
-                      <div className="facility-actions"><button className="secondary" onClick={(event) => { event.stopPropagation(); handleToggle(facility.id); }} disabled={!facility.unlocked || facility.level === 0}>Power: {facility.active ? "ON" : "OFF"}</button><button onClick={(event) => { event.stopPropagation(); handleUpgrade(facility.id); }} disabled={!facility.unlocked || !canAfford} title={!facility.unlocked ? "Complete the unlock requirements" : !canAfford ? "Need the listed cash and materials" : `Upgrade ${facility.name}`}>{!facility.unlocked ? "Locked • See requirements" : facility.level === 0 && canAfford ? `Build • ${formatMoney(cost.cash)}` : canAfford ? `Upgrade • ${formatMoney(cost.cash)}` : "Need listed requirements"}</button></div>
+                      <div className="facility-actions"><button className="secondary" onClick={(event) => { event.stopPropagation(); handleToggle(facility.id); }} disabled={!facility.unlocked || facility.level === 0}>Power: {facility.active ? "ON" : "OFF"}</button><button onClick={(event) => { event.stopPropagation(); handleUpgrade(facility.id); }} disabled={!facility.unlocked || !canAfford} title={!facility.unlocked ? "Complete the unlock requirements" : !canAfford ? "Need the listed cash and materials" : `Upgrade ${facility.name}`}>{!facility.unlocked ? "Locked ï¿½ See requirements" : facility.level === 0 && canAfford ? `Build ï¿½ ${formatMoney(cost.cash)}` : canAfford ? `Upgrade ï¿½ ${formatMoney(cost.cash)}` : "Need listed requirements"}</button></div>
                     </article>
                   );
                 })}</div>}
@@ -370,7 +352,6 @@ function App() {
   );
 
   const renderWarehouse = () => (
-<<<<<<< HEAD
     <div className="panel-grid single">
       <section className="panel">
         <div className="panel-header"><div><p className="eyebrow">Warehouse controls</p><h2>Inventory by category</h2></div><span className="muted">{storage.used.toFixed(0)} / {storage.capacity} used</span></div>
@@ -382,16 +363,18 @@ function App() {
             <div className="panel-header"><div><p className="eyebrow">{CATEGORY_LABELS[category]}</p><h2>{rows.length} tracked items</h2></div></div>
             <div className="table-shell">
               <table className="warehouse-table">
-                <thead><tr><th>Resource</th><th>Stock</th><th>Rate</th><th>Capacity</th><th>Sell</th></tr></thead>
+                <thead><tr><th>Resource</th><th>Stock</th><th>Rate</th><th>Capacity</th><th>Auto-sell</th><th>Sell</th></tr></thead>
                 <tbody>
                   {rows.map(({ resourceId, name, amount, rate, price, unit }) => {
                     const stockPercent = storage.capacity === 0 ? 0 : (amount / storage.capacity) * 100;
+                    const autoSell = game.warehouses.central.inventory[resourceId].autoSell;
                     return (
                       <tr key={resourceId}>
                         <td><div className="resource-name"><span>{name}</span><small>{unit}</small></div></td>
                         <td><span key={`${resourceId}-${amount}`} className="stock-value">{formatQuantity(amount)}</span></td>
                         <td className={rate >= 0 ? "positive" : "danger"}>{formatRate(rate)}</td>
                         <td><div className="progress-wrap"><div className="progress-bar"><span style={{ width: `${Math.min(stockPercent, 100)}%` }} /></div></div></td>
+                        <td><label><input type="checkbox" checked={autoSell.enabled} onChange={() => handleAutoSellToggle(resourceId)} />{" "}<input className="wh-card-autosell-input" type="number" min="0" step="any" value={autoSell.amount} onChange={(event) => handleAutoSellAmountChange(resourceId, event.target.value)} /><span className="muted">/tick</span></label></td>
                         <td><div className="sell-group"><button className="small" onClick={() => handleSell(resourceId, 25)}>Sell 25</button><button className="small secondary" onClick={() => handleSell(resourceId, amount)}>Sell All</button></div><small className="muted">{formatMoney(price)}/unit</small></td>
                       </tr>
                     );
@@ -402,57 +385,6 @@ function App() {
           </div>
         ))}
       </section>
-=======
-    <div className="warehouse-cards">
-      {resourceRows.map(({ resourceId, name, amount, rate, price }) => {
-        const stockPercent = (amount / storage.capacity) * 100;
-        const autoSell = game.warehouses.central.inventory[resourceId].autoSell;
-        return (
-          <div key={resourceId} className="wh-card">
-            <div>
-              <span className="wh-card-name">{name}</span>
-              <span className="wh-card-unit">{RESOURCE_DEFINITIONS[resourceId].unit}</span>
-            </div>
-            <div>
-              <span key={`${resourceId}-${amount}`} className="wh-card-amount">{formatQuantity(amount)}</span>
-            </div>
-            <div className="muted" style={{ fontSize: "0.72rem" }}>Rate</div>
-            <div className={`wh-card-rate ${rate >= 0 ? "positive" : "danger"}`}>{formatRate(rate)}</div>
-            <div className="wh-card-bar">
-              <div className="progress-bar">
-                <span style={{ width: `${Math.min(stockPercent, 100)}%` }} />
-              </div>
-            </div>
-            <div className="wh-card-bottom">
-              <div className="wh-card-autosell">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={autoSell.enabled}
-                    onChange={() => handleAutoSellToggle(resourceId)}
-                  />
-                  {" "}Auto
-                </label>
-                <input
-                  className="wh-card-autosell-input"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={autoSell.amount}
-                  onChange={(event) => handleAutoSellAmountChange(resourceId, event.target.value)}
-                />
-                <span className="muted">/tick</span>
-              </div>
-              <div className="wh-sell-group">
-                <button className="small" onClick={() => handleSell(resourceId, 25)}>Sell 25</button>
-                <button className="small secondary" onClick={() => handleSell(resourceId, amount)}>All</button>
-                <small className="muted">{formatMoney(price)}/unit</small>
-              </div>
-            </div>
-          </div>
-        );
-      })}
->>>>>>> origin/master
     </div>
   );
 
@@ -465,7 +397,7 @@ function App() {
             <div key={resourceId} className="market-item">
               <div><strong>{name}</strong><span>{formatQuantity(amount)} on hand</span></div>
               <div className="market-actions">
-                <button className="small" onClick={() => handleBuy(resourceId, 25)}>Buy 25 • {formatMoney(price * 25 * 1.2)}</button>
+                <button className="small" onClick={() => handleBuy(resourceId, 25)}>Buy 25 ï¿½ {formatMoney(price * 25 * 1.2)}</button>
                 <button className="small secondary" onClick={() => handleSell(resourceId, Math.max(10, Math.round(amount * 0.25)))}>Sell {formatMoney(price * Math.max(10, Math.round(amount * 0.25)))}</button>
               </div>
             </div>
@@ -506,23 +438,6 @@ function App() {
 
   return (
     <div className="app-shell">
-<<<<<<< HEAD
-      {isConsolePage && (
-        <header className="topbar">
-          <div className="brand-wrap"><div className="brand-mark">IF</div><div><p className="eyebrow">Industrial Frontier</p><h1>Operations Console</h1></div></div>
-          <div className="topbar-stats">
-            <div className="mini-stat"><span>Cash</span><strong>{formatMoney(game.cash)}</strong></div>
-            <div className="mini-stat"><span>Power</span><strong>{powerBalance.production.toFixed(0)} / {powerBalance.consumption.toFixed(0)} MW</strong></div>
-            <div className="mini-stat"><span>Warehouse Used</span><strong>{storage.used.toFixed(0)} / {storage.capacity}</strong></div>
-            <div className="mini-stat"><span>Workforce</span><strong>{game.workforce.activeDemand} / {game.workforce.capacity}</strong></div>
-          </div>
-        </header>
-      )}
-      <main className="content-shell">{renderActivePage()}</main>
-      <nav className="mobile-tabbar" aria-label="Main navigation">
-        {TAB_ITEMS.map((item) => (
-          <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => { setSelectedFacilityId(null); setTab(item.id); }} type="button">{item.label}</button>
-=======
       <header className="topbar">
         <div className="brand-wrap">
           <div className="brand-mark">IF</div>
@@ -570,14 +485,13 @@ function App() {
             <span className="tab-icon">{item.icon}</span>
             {item.label}
           </button>
->>>>>>> origin/master
         ))}
       </nav>
       {selectedFacility && selectedCost && (
         <div className="facility-modal-backdrop" onClick={() => setSelectedFacilityId(null)}>
           <section className="facility-modal" role="dialog" aria-modal="true" aria-labelledby="facility-modal-title" onClick={(event) => event.stopPropagation()}>
             <div className="panel-header"><div><p className="eyebrow">Facility control</p><h2 id="facility-modal-title">{selectedFacility.name}</h2></div><button className="secondary modal-close" onClick={() => setSelectedFacilityId(null)} aria-label="Close facility controls">Close</button></div>
-            <div className="facility-modal-status"><span className={`badge ${selectedFacility.active ? "good" : "muted"}`}>{selectedFacility.active ? "POWER ON" : "POWER OFF"}</span><span className="muted">Tier {selectedFacility.tier} · {selectedFacility.level === 0 ? "Not built" : `Level ${selectedFacility.level}`}</span></div>
+            <div className="facility-modal-status"><span className={`badge ${selectedFacility.active ? "good" : "muted"}`}>{selectedFacility.active ? "POWER ON" : "POWER OFF"}</span><span className="muted">Tier {selectedFacility.tier} ï¿½ {selectedFacility.level === 0 ? "Not built" : `Level ${selectedFacility.level}`}</span></div>
             <div className="metric-list">
               <div className="metric-row"><span>Power demand</span><strong>{selectedFacility.powerConsumption * selectedFacility.level} MW</strong></div>
               <div className="metric-row"><span>Workers required</span><strong>{selectedFacility.workersNeeded * selectedFacility.level}</strong></div>

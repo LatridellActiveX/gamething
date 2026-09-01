@@ -50,7 +50,6 @@ const fac = (
   upgrade: { base: { cash, materials }, growth: 1.75 },
 });
 
-<<<<<<< HEAD
 export const RESOURCE_DEFINITIONS: Record<ResourceId, ResourceDefinition> = {
   power: resource("Power", "MW", 4, "energy"),
   coal: resource("Coal", "t", 12, "raw", "ore"),
@@ -63,7 +62,7 @@ export const RESOURCE_DEFINITIONS: Record<ResourceId, ResourceDefinition> = {
   limestone: resource("Limestone", "t", 10, "raw", "ore"),
   titaniumOre: resource("Titanium Ore", "t", 24, "raw", "ore"),
   uraniumOre: resource("Uranium Ore", "t", 25, "raw", "radioactive"),
-  naturalGas: resource("Natural Gas", "kNm³", 20, "raw", "gas"),
+  naturalGas: resource("Natural Gas", "kNmï¿½", 20, "raw", "gas"),
   lithiumOre: resource("Lithium Ore", "t", 23, "raw", "ore"),
   goldOre: resource("Gold Ore", "t", 24, "raw", "secure"),
   silverOre: resource("Silver Ore", "t", 17, "raw", "secure"),
@@ -83,7 +82,7 @@ export const RESOURCE_DEFINITIONS: Record<ResourceId, ResourceDefinition> = {
   quicklime: resource("Quicklime", "t", 20, "construction", "general"),
   titaniumIngot: resource("Titanium Ingot", "t", 78, "refined", "general"),
   enrichedUranium: resource("Enriched Uranium", "rod", 100, "refined", "radioactive"),
-  methane: resource("Methane", "kNm³", 44, "refined", "gas"),
+  methane: resource("Methane", "kNmï¿½", 44, "refined", "gas"),
   lithiumCarbonate: resource("Lithium Carbonate", "t", 84, "refined", "hazardous"),
   goldBar: resource("Gold Bar", "kg", 96, "refined", "secure"),
   silverBar: resource("Silver Bar", "kg", 68, "refined", "secure"),
@@ -91,7 +90,7 @@ export const RESOURCE_DEFINITIONS: Record<ResourceId, ResourceDefinition> = {
   neodymium: resource("Neodymium", "kg", 88, "refined", "secure"),
   bioFuel: resource("Biofuel", "bbl", 36, "refined", "liquid"),
   glass: resource("Glass", "t", 85, "refined", "general"),
-  hydrogen: resource("Hydrogen", "kNm³", 58, "refined", "gas"),
+  hydrogen: resource("Hydrogen", "kNmï¿½", 58, "refined", "gas"),
   tungstenCarbide: resource("Tungsten Carbide", "t", 98, "refined", "general"),
   steelPlate: resource("Steel Plate", "t", 75, "refined", "general"),
   copperWire: resource("Copper Wire", "t", 115, "refined", "general"),
@@ -156,7 +155,7 @@ export const RESOURCE_DEFINITIONS: Record<ResourceId, ResourceDefinition> = {
 
 const createCentralInventory = (): GameState["warehouses"]["central"]["inventory"] => {
   const inventory = Object.fromEntries(
-    (Object.keys(RESOURCE_DEFINITIONS) as ResourceId[]).map((resourceId) => [resourceId, { amount: 0, reserved: 0 }]),
+    (Object.keys(RESOURCE_DEFINITIONS) as ResourceId[]).map((resourceId) => [resourceId, { amount: 0, reserved: 0, autoSell: { enabled: false, amount: 0 } }]),
   ) as GameState["warehouses"]["central"]["inventory"];
 
   const startingAmounts: Partial<Record<ResourceId, number>> = {
@@ -285,16 +284,6 @@ const FACILITIES = [
   fac("cryogenicStorageTank", "Cryogenic Storage Tank", {}, {}, 1, 3_600, { concrete: 16, steelPlate: 12 }, req(2, "fuelCellPlant"), false, 3, 1, 4),
   fac("megaWarehouseArray", "Mega Warehouse Array", {}, {}, 2, 8_500, { concrete: 24, steelPlate: 18, electronics: 4 }, req(2, "chassisAssembly"), false, 4, 1, 5),
 ] as const;
-=======
-const inventoryEntry = (amount: number) => ({
-  amount,
-  reserved: 0,
-  autoSell: {
-    enabled: false,
-    amount: 0,
-  },
-});
->>>>>>> origin/master
 
 export const INITIAL_GAME_STATE: GameState = {
   schemaVersion: 1,
@@ -303,58 +292,8 @@ export const INITIAL_GAME_STATE: GameState = {
   workforce: { capacity: 20, activeDemand: 0 },
   cashFlow: { upkeep: 0, wages: 0, net: 0 },
   warehouses: {
-<<<<<<< HEAD
     central: { capacity: 20000, inventory: createCentralInventory() },
-    energy: { capacity: 250, inventory: { power: { amount: 50, reserved: 0 } } },
-=======
-    central: {
-      capacity: 20000,
-      inventory: {
-        power: inventoryEntry(0),
-        coal: inventoryEntry(2000),
-        ironOre: inventoryEntry(80),
-        ironIngot: inventoryEntry(0),
-        steelPlate: inventoryEntry(100),
-        quicklime: inventoryEntry(40),
-        water: inventoryEntry(100),
-        concrete: inventoryEntry(100),
-        copperOre: inventoryEntry(0),
-        copperWire: inventoryEntry(0),
-        silica: inventoryEntry(0),
-        glass: inventoryEntry(0),
-        electronics: inventoryEntry(0),
-        phone: inventoryEntry(0),
-      },
-    },
-    energy: {
-      capacity: 250,
-      inventory: {
-        power: inventoryEntry(50),
-      },
-    },
-  },
-  facilities: {
-    // [] means "available from the start"; the two-level rules below form the
-    // production-chain progression for advanced facilities.
-    warehouse: facility("warehouse", "Warehouse", {}, {}, 0, 1_200, { concrete: 15 }, [], true, 1, 0),
-    coalGenerator: facility("coalGenerator", "Coal Generator", { coal: 2 }, { power: 5 }, 0, 650, { steelPlate: 5 }, [], true, 3, 1),
-    ironOreMine: facility("ironOreMine", "Iron Ore Mine", {}, { ironOre: 1.5 }, 1, 900, { concrete: 10 }, [], true, 2, 2),
-    coalExcavator: facility("coalExcavator", "Coal Excavator", {}, { coal: 1.25 }, 1, 900, { concrete: 10 }, [], true, 2, 2),
-    blastFurnace: facility("blastFurnace", "Blast Furnace", { ironOre: 1, coal: 1 }, { ironIngot: 1 }, 2, 1_500, { steelPlate: 8 }, [{ facilityId: "ironOreMine", level: 2 }, { facilityId: "coalExcavator", level: 2 }], false, 5, 5),
-    rollingMill: facility("rollingMill", "Rolling Mill", { ironIngot: 1, coal: 0.5 }, { steelPlate: 1 }, 2, 2_200, { concrete: 15 }, [{ facilityId: "blastFurnace", level: 2 }], false, 6, 4),
-    concreteBatchPlant: facility("concreteBatchPlant", "Concrete Batch Plant", { quicklime: 1, water: 2 }, { concrete: 1 }, 1, 1_200, { steelPlate: 5 }, [], true, 3, 2),
-    waterPump: facility("waterPump", "Water Pump", {}, { water: 4 }, 1, 850, { concrete: 8 }, [], true, 2, 2),
-    quicklimeHarvester: facility("quicklimeHarvester", "Quicklime Harvester", { water: 1 }, { quicklime: 1 }, 1, 1_100, { concrete: 10, steelPlate: 3 }, [], true, 2, 2),
-    solarPanels: facility("solarPanels", "Solar Panels", {}, { power: 6 }, 0, 1_800, { steelPlate: 6, concrete: 8 }, [], true, 0, 0),
-    windTurbines: facility("windTurbines", "Wind Turbines", {}, { power: 4 }, 0, 2_400, { steelPlate: 10, concrete: 12 }, [{ facilityId: "rollingMill", level: 2 }], false, 0, 0),
-    workerHousing: facility("workerHousing", "Worker Housing", {}, {}, 1, 1_000, { concrete: 12, steelPlate: 4 }, [], true, 2, 0),
-    copperMine: facility("copperMine", "Copper Mine", {}, { copperOre: 1.2 }, 1, 1_050, { concrete: 12 }, [], true, 2, 2),
-    wireMill: facility("wireMill", "Wire Mill", { copperOre: 1 }, { copperWire: 1 }, 2, 1_700, { steelPlate: 8, concrete: 10 }, [{ facilityId: "copperMine", level: 2 }], false, 5, 3),
-    silicaQuarry: facility("silicaQuarry", "Silica Quarry", {}, { silica: 1.5 }, 1, 950, { concrete: 10 }, [], true, 2, 2),
-    glassworks: facility("glassworks", "Glassworks", { silica: 1, water: 1 }, { glass: 1 }, 2, 1_900, { steelPlate: 8, concrete: 12 }, [{ facilityId: "silicaQuarry", level: 2 }], false, 5, 3),
-    electronicsAssembler: facility("electronicsAssembler", "Electronics Assembler", { copperWire: 1, glass: 0.5, steelPlate: 0.25 }, { electronics: 1 }, 3, 2_800, { steelPlate: 12, concrete: 15 }, [{ facilityId: "wireMill", level: 2 }, { facilityId: "glassworks", level: 2 }], false, 8, 5),
-    phoneFactory: facility("phoneFactory", "Phone Factory", { electronics: 1, steelPlate: 0.5 }, { phone: 1 }, 4, 4_500, { concrete: 18, steelPlate: 12 }, [{ facilityId: "electronicsAssembler", level: 2 }], false, 10, 6),
->>>>>>> origin/master
+    energy: { capacity: 250, inventory: { power: { amount: 50, reserved: 0, autoSell: { enabled: false, amount: 0 } } } },
   },
   facilities: Object.fromEntries(FACILITIES.map((facility) => [facility.id, facility])) as GameState["facilities"],
   lastTickTimestamp: 0,
