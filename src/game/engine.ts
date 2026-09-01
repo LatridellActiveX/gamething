@@ -152,6 +152,7 @@ export function tickGameState(state: GameState, seconds: number): GameState {
       facility.status = "online";
     }
 
+    applyAutoSell(state);
     computePowerStats(state);
     const financials = computeFinancials(state);
     state.cash = Math.max(0, state.cash - financials.net);
@@ -168,6 +169,38 @@ export function tickGameState(state: GameState, seconds: number): GameState {
     state.lastTickTimestamp = Date.now();
   }
 
+  return state;
+}
+
+function processResourceSale(state: GameState, resourceId: ResourceId, requestedAmount: number) {
+  const storage = state.warehouses.central.inventory[resourceId];
+  const amount = Math.min(Math.max(0, requestedAmount), storage.amount);
+  if (amount <= 0) return 0;
+
+  const unitValue = RESOURCE_DEFINITIONS[resourceId].baseValue * 0.45;
+  state.cash += Number((amount * unitValue).toFixed(2));
+  storage.amount -= amount;
+  return amount;
+}
+
+function applyAutoSell(state: GameState) {
+  for (const resourceId of MATERIAL_RESOURCE_IDS) {
+    const storage = state.warehouses.central.inventory[resourceId];
+    if (!storage.autoSell.enabled || storage.autoSell.amount <= 0) continue;
+    processResourceSale(state, resourceId, storage.autoSell.amount);
+  }
+}
+
+export function setResourceAutoSell(
+  state: GameState,
+  resourceId: ResourceId,
+  enabled: boolean,
+  requestedAmount: number,
+): GameState {
+  const storage = state.warehouses.central.inventory[resourceId];
+  const amount = Number.isFinite(requestedAmount) ? Math.max(0, Math.round(requestedAmount * 100) / 100) : 0;
+  storage.autoSell.enabled = enabled;
+  storage.autoSell.amount = amount;
   return state;
 }
 
@@ -203,11 +236,16 @@ export function toggleFacility(state: GameState, facilityId: FacilityId): GameSt
 }
 
 export function sellResource(state: GameState, resourceId: ResourceId, requestedAmount: number): GameState {
+<<<<<<< HEAD
   const storage = state.warehouses.central.inventory[resourceId];
   const amount = Math.min(Math.max(0, requestedAmount), storage?.amount ?? 0);
   if (amount <= 0) return state;
   state.cash += Number((amount * getResourcePrice(resourceId)).toFixed(2));
   storage.amount -= amount;
+=======
+  const amount = processResourceSale(state, resourceId, requestedAmount);
+  if (amount <= 0) return state;
+>>>>>>> origin/master
   computePowerStats(state);
   return state;
 }

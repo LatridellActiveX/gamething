@@ -11,6 +11,7 @@ import {
   getResourcePrice,
   purchaseResource,
   sellResource,
+  setResourceAutoSell,
   tickGameState,
   toggleFacility,
   upgradeFacility,
@@ -18,11 +19,11 @@ import {
 } from "./game/engine";
 
 const TAB_ITEMS = [
-  { id: "dashboard", label: "Operations Console" },
-  { id: "facilities", label: "Facilities" },
-  { id: "warehouse", label: "Warehouse" },
-  { id: "market", label: "Market" },
-  { id: "settings", label: "Settings" },
+  { id: "dashboard", label: "Console", icon: "⚡" },
+  { id: "facilities", label: "Build", icon: "🏭" },
+  { id: "warehouse", label: "Cargo", icon: "📦" },
+  { id: "market", label: "Market", icon: "💹" },
+  { id: "settings", label: "Save", icon: "⚙️" },
 ] as const;
 
 type TabId = (typeof TAB_ITEMS)[number]["id"];
@@ -175,6 +176,7 @@ function App() {
 
   const handleSell = (resourceId: ResourceId, quantity: number) => {
     const current = structuredClone(gameRef.current);
+<<<<<<< HEAD
     const startingAmount = current.warehouses.central.inventory[resourceId]?.amount ?? 0;
     const next = sellResource(current, resourceId, quantity);
     const sold = Math.max(0, startingAmount - (next.warehouses.central.inventory[resourceId]?.amount ?? 0));
@@ -183,6 +185,42 @@ function App() {
     setGame(next);
     addLog(`Sold ${formatQuantity(sold)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(sold * getResourcePrice(resourceId))}.`);
   };
+=======
+    const startingAmount = current.warehouses.central.inventory[resourceId].amount;
+    const startingCash = current.cash;
+    const next = sellResource(current, resourceId, quantity);
+    const sold = Math.max(0, startingAmount - next.warehouses.central.inventory[resourceId].amount);
+    const revenue = Math.max(0, next.cash - startingCash);
+    gameRef.current = next;
+    setGame(next);
+    if (sold > 0) {
+      addLog(`Sold ${formatQuantity(sold)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(revenue)}.`);
+    }
+  };
+
+  const handleAutoSellAmountChange = (resourceId: ResourceId, value: string) => {
+    const parsedValue = value.trim() === "" ? 0 : Number.parseFloat(value);
+    if (Number.isNaN(parsedValue)) return;
+    const current = structuredClone(gameRef.current);
+    const { enabled } = current.warehouses.central.inventory[resourceId].autoSell;
+    const next = setResourceAutoSell(current, resourceId, enabled, parsedValue);
+    gameRef.current = next;
+    setGame(next);
+  };
+
+  const handleAutoSellToggle = (resourceId: ResourceId) => {
+    const current = structuredClone(gameRef.current);
+    const autoSell = current.warehouses.central.inventory[resourceId].autoSell;
+    const nextEnabled = !autoSell.enabled;
+    const next = setResourceAutoSell(current, resourceId, nextEnabled, autoSell.amount);
+    gameRef.current = next;
+    setGame(next);
+    addLog(
+      `${RESOURCE_DEFINITIONS[resourceId].name} autosell ${nextEnabled ? `enabled at ${formatQuantity(next.warehouses.central.inventory[resourceId].autoSell.amount)}/tick` : "disabled"}.`,
+    );
+  };
+
+>>>>>>> origin/master
   const handleBuy = (resourceId: ResourceId, quantity: number) => {
     const current = structuredClone(gameRef.current);
     const startingAmount = current.warehouses.central.inventory[resourceId]?.amount ?? 0;
@@ -232,9 +270,27 @@ function App() {
       <section className="panel wide">
         <div className="panel-header"><div><p className="eyebrow">Overview</p><h2>Factory performance</h2></div><span className="status-banner">{upgradeNotice}</span></div>
         <div className="kpis">
+<<<<<<< HEAD
           <div className="kpi"><span>Cash</span><strong>{formatMoney(game.cash)}</strong></div>
           <div className="kpi accent-green"><span>Live Power</span><strong>{powerBalance.production.toFixed(1)} MW</strong></div>
           <div className="kpi accent-orange"><span>Capacity Used</span><strong>{storage.used.toFixed(0)} / {storage.capacity}</strong></div>
+=======
+          <div className="kpi">
+            <span className="kpi-icon">💰</span>
+            <span>Cash</span>
+            <strong>{formatMoney(game.cash)}</strong>
+          </div>
+          <div className="kpi accent-green">
+            <span className="kpi-icon">⚡</span>
+            <span>Power</span>
+            <strong>{powerBalance.production.toFixed(1)} MW</strong>
+          </div>
+          <div className="kpi accent-orange">
+            <span className="kpi-icon">📦</span>
+            <span>Storage</span>
+            <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
+          </div>
+>>>>>>> origin/master
         </div>
       </section>
       <section className="panel">
@@ -314,6 +370,7 @@ function App() {
   );
 
   const renderWarehouse = () => (
+<<<<<<< HEAD
     <div className="panel-grid single">
       <section className="panel">
         <div className="panel-header"><div><p className="eyebrow">Warehouse controls</p><h2>Inventory by category</h2></div><span className="muted">{storage.used.toFixed(0)} / {storage.capacity} used</span></div>
@@ -345,6 +402,57 @@ function App() {
           </div>
         ))}
       </section>
+=======
+    <div className="warehouse-cards">
+      {resourceRows.map(({ resourceId, name, amount, rate, price }) => {
+        const stockPercent = (amount / storage.capacity) * 100;
+        const autoSell = game.warehouses.central.inventory[resourceId].autoSell;
+        return (
+          <div key={resourceId} className="wh-card">
+            <div>
+              <span className="wh-card-name">{name}</span>
+              <span className="wh-card-unit">{RESOURCE_DEFINITIONS[resourceId].unit}</span>
+            </div>
+            <div>
+              <span key={`${resourceId}-${amount}`} className="wh-card-amount">{formatQuantity(amount)}</span>
+            </div>
+            <div className="muted" style={{ fontSize: "0.72rem" }}>Rate</div>
+            <div className={`wh-card-rate ${rate >= 0 ? "positive" : "danger"}`}>{formatRate(rate)}</div>
+            <div className="wh-card-bar">
+              <div className="progress-bar">
+                <span style={{ width: `${Math.min(stockPercent, 100)}%` }} />
+              </div>
+            </div>
+            <div className="wh-card-bottom">
+              <div className="wh-card-autosell">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={autoSell.enabled}
+                    onChange={() => handleAutoSellToggle(resourceId)}
+                  />
+                  {" "}Auto
+                </label>
+                <input
+                  className="wh-card-autosell-input"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={autoSell.amount}
+                  onChange={(event) => handleAutoSellAmountChange(resourceId, event.target.value)}
+                />
+                <span className="muted">/tick</span>
+              </div>
+              <div className="wh-sell-group">
+                <button className="small" onClick={() => handleSell(resourceId, 25)}>Sell 25</button>
+                <button className="small secondary" onClick={() => handleSell(resourceId, amount)}>All</button>
+                <small className="muted">{formatMoney(price)}/unit</small>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+>>>>>>> origin/master
     </div>
   );
 
@@ -398,6 +506,7 @@ function App() {
 
   return (
     <div className="app-shell">
+<<<<<<< HEAD
       {isConsolePage && (
         <header className="topbar">
           <div className="brand-wrap"><div className="brand-mark">IF</div><div><p className="eyebrow">Industrial Frontier</p><h1>Operations Console</h1></div></div>
@@ -413,6 +522,55 @@ function App() {
       <nav className="mobile-tabbar" aria-label="Main navigation">
         {TAB_ITEMS.map((item) => (
           <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => { setSelectedFacilityId(null); setTab(item.id); }} type="button">{item.label}</button>
+=======
+      <header className="topbar">
+        <div className="brand-wrap">
+          <div className="brand-mark">IF</div>
+          <div>
+            <p className="eyebrow">Industrial Frontier</p>
+            {isConsolePage && <h1>Operations Console</h1>}
+          </div>
+        </div>
+
+        <div className="topbar-stats">
+          <div className="mini-stat">
+            <span>Cash</span>
+            <strong>{formatMoney(game.cash)}</strong>
+          </div>
+          <div className="mini-stat">
+            <span>Power</span>
+            <strong>{powerBalance.production.toFixed(0)}/{powerBalance.consumption.toFixed(0)} MW</strong>
+          </div>
+          <div className="mini-stat">
+            <span>Storage</span>
+            <strong>{storage.used.toFixed(0)}/{storage.capacity}</strong>
+          </div>
+          <div className="mini-stat">
+            <span>Workers</span>
+            <strong>{game.workforce.activeDemand}/{game.workforce.capacity}</strong>
+          </div>
+        </div>
+      </header>
+
+      <main className="content-shell">
+        {renderActivePage()}
+      </main>
+
+      <nav className="mobile-tabbar" aria-label="Main navigation">
+        {TAB_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            className={tab === item.id ? "active" : ""}
+            onClick={() => {
+              setSelectedFacilityId(null);
+              setTab(item.id);
+            }}
+            type="button"
+          >
+            <span className="tab-icon">{item.icon}</span>
+            {item.label}
+          </button>
+>>>>>>> origin/master
         ))}
       </nav>
       {selectedFacility && selectedCost && (
