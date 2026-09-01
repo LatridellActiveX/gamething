@@ -24,11 +24,11 @@ import {
 
 
 const TAB_ITEMS = [
-  { id: "dashboard", label: "Operations Console" },
-  { id: "facilities", label: "Facilities" },
-  { id: "warehouse", label: "Warehouse" },
-  { id: "market", label: "Market" },
-  { id: "settings", label: "Settings" },
+  { id: "dashboard", label: "Console", icon: "⚡" },
+  { id: "facilities", label: "Build", icon: "🏭" },
+  { id: "warehouse", label: "Cargo", icon: "📦" },
+  { id: "market", label: "Market", icon: "💹" },
+  { id: "settings", label: "Save", icon: "⚙️" },
 ] as const;
 
 type TabId = (typeof TAB_ITEMS)[number]["id"];
@@ -273,15 +273,18 @@ function App() {
 
         <div className="kpis">
           <div className="kpi">
+            <span className="kpi-icon">💰</span>
             <span>Cash</span>
             <strong>{formatMoney(game.cash)}</strong>
           </div>
           <div className="kpi accent-green">
-            <span>Live Power</span>
+            <span className="kpi-icon">⚡</span>
+            <span>Power</span>
             <strong>{powerBalance.production.toFixed(1)} MW</strong>
           </div>
           <div className="kpi accent-orange">
-            <span>Capacity Used</span>
+            <span className="kpi-icon">📦</span>
+            <span>Storage</span>
             <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
           </div>
         </div>
@@ -517,74 +520,55 @@ function App() {
     && selectedHasMaterials);
 
   const renderWarehouse = () => (
-    <div className="table-shell">
-      <table className="warehouse-table">
-        <thead>
-          <tr>
-            <th>Resource</th>
-            <th>Stock</th>
-            <th>Rate</th>
-            <th>Capacity</th>
-            <th>Autosell</th>
-            <th>Sell</th>
-          </tr>
-        </thead>
-        <tbody>
-          {resourceRows.map(({ resourceId, name, amount, rate, price }) => {
-            const stockPercent = (amount / storage.capacity) * 100;
-            const autoSell = game.warehouses.central.inventory[resourceId].autoSell;
-            return (
-              <tr key={resourceId}>
-                <td>
-                  <div className="resource-name">
-                    <span>{name}</span>
-                    <small>{RESOURCE_DEFINITIONS[resourceId].unit}</small>
-                  </div>
-                </td>
-                <td>
-                  <span key={`${resourceId}-${amount}`} className="stock-value">{formatQuantity(amount)}</span>
-                </td>
-                <td className={rate >= 0 ? "positive" : "danger"}>{formatRate(rate)}</td>
-                <td>
-                  <div className="progress-wrap">
-                    <div className="progress-bar">
-                      <span style={{ width: `${Math.min(stockPercent, 100)}%` }} />
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div className="autosell-controls">
-                    <label className="autosell-toggle">
-                      <input
-                        type="checkbox"
-                        checked={autoSell.enabled}
-                        onChange={() => handleAutoSellToggle(resourceId)}
-                      />
-                      <span>Enabled</span>
-                    </label>
-                    <input
-                      className="autosell-input"
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={autoSell.amount}
-                      onChange={(event) => handleAutoSellAmountChange(resourceId, event.target.value)}
-                    />
-                    <small className="muted">units/tick</small>
-                  </div>
-                </td>
-                <td>
-                  <div className="sell-group">
-                    <button className="small" onClick={() => handleSell(resourceId, 25)}>Sell 25</button>
-                    <button className="small secondary" onClick={() => handleSell(resourceId, amount)}>Sell All</button>
-                  </div>
-                  <small className="muted">{formatMoney(price)}/unit</small>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="warehouse-cards">
+      {resourceRows.map(({ resourceId, name, amount, rate, price }) => {
+        const stockPercent = (amount / storage.capacity) * 100;
+        const autoSell = game.warehouses.central.inventory[resourceId].autoSell;
+        return (
+          <div key={resourceId} className="wh-card">
+            <div>
+              <span className="wh-card-name">{name}</span>
+              <span className="wh-card-unit">{RESOURCE_DEFINITIONS[resourceId].unit}</span>
+            </div>
+            <div>
+              <span key={`${resourceId}-${amount}`} className="wh-card-amount">{formatQuantity(amount)}</span>
+            </div>
+            <div className="muted" style={{ fontSize: "0.72rem" }}>Rate</div>
+            <div className={`wh-card-rate ${rate >= 0 ? "positive" : "danger"}`}>{formatRate(rate)}</div>
+            <div className="wh-card-bar">
+              <div className="progress-bar">
+                <span style={{ width: `${Math.min(stockPercent, 100)}%` }} />
+              </div>
+            </div>
+            <div className="wh-card-bottom">
+              <div className="wh-card-autosell">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={autoSell.enabled}
+                    onChange={() => handleAutoSellToggle(resourceId)}
+                  />
+                  {" "}Auto
+                </label>
+                <input
+                  className="wh-card-autosell-input"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={autoSell.amount}
+                  onChange={(event) => handleAutoSellAmountChange(resourceId, event.target.value)}
+                />
+                <span className="muted">/tick</span>
+              </div>
+              <div className="wh-sell-group">
+                <button className="small" onClick={() => handleSell(resourceId, 25)}>Sell 25</button>
+                <button className="small secondary" onClick={() => handleSell(resourceId, amount)}>All</button>
+                <small className="muted">{formatMoney(price)}/unit</small>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -674,36 +658,34 @@ function App() {
 
   return (
     <div className="app-shell">
-      {isConsolePage && (
-        <header className="topbar">
-          <div className="brand-wrap">
-            <div className="brand-mark">IF</div>
-            <div>
-              <p className="eyebrow">Industrial Frontier</p>
-              <h1>Operations Console</h1>
-            </div>
+      <header className="topbar">
+        <div className="brand-wrap">
+          <div className="brand-mark">IF</div>
+          <div>
+            <p className="eyebrow">Industrial Frontier</p>
+            {isConsolePage && <h1>Operations Console</h1>}
           </div>
+        </div>
 
-          <div className="topbar-stats">
-            <div className="mini-stat">
-              <span>Cash</span>
-              <strong>{formatMoney(game.cash)}</strong>
-            </div>
-            <div className="mini-stat">
-              <span>Power</span>
-              <strong>{powerBalance.production.toFixed(0)} / {powerBalance.consumption.toFixed(0)} MW</strong>
-            </div>
-            <div className="mini-stat">
-              <span>Warehouse Used</span>
-              <strong>{storage.used.toFixed(0)} / {storage.capacity}</strong>
-            </div>
-            <div className="mini-stat">
-              <span>Workforce</span>
-              <strong>{game.workforce.activeDemand} / {game.workforce.capacity}</strong>
-            </div>
+        <div className="topbar-stats">
+          <div className="mini-stat">
+            <span>Cash</span>
+            <strong>{formatMoney(game.cash)}</strong>
           </div>
-        </header>
-      )}
+          <div className="mini-stat">
+            <span>Power</span>
+            <strong>{powerBalance.production.toFixed(0)}/{powerBalance.consumption.toFixed(0)} MW</strong>
+          </div>
+          <div className="mini-stat">
+            <span>Storage</span>
+            <strong>{storage.used.toFixed(0)}/{storage.capacity}</strong>
+          </div>
+          <div className="mini-stat">
+            <span>Workers</span>
+            <strong>{game.workforce.activeDemand}/{game.workforce.capacity}</strong>
+          </div>
+        </div>
+      </header>
 
       <main className="content-shell">
         {renderActivePage()}
@@ -720,6 +702,7 @@ function App() {
             }}
             type="button"
           >
+            <span className="tab-icon">{item.icon}</span>
             {item.label}
           </button>
         ))}
