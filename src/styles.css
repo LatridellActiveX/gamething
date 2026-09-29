@@ -48,8 +48,10 @@ body {
     radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34, 211, 238, 0.07), transparent),
     linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+    url("./assets/art/bg-tile.svg"),
     var(--bg);
-  background-size: 100% 100%, 28px 28px, 28px 28px;
+  background-size: 100% 100%, 28px 28px, 28px 28px, 64px 64px;
+  image-rendering: pixelated;
 }
 
 button,
@@ -1111,4 +1113,55 @@ textarea:focus-visible {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---- Pixel art ---- */
+.pixel-icon {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  flex: none;
+}
+
+.icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.brand-mark.pixel-icon {
+  display: block;
+  padding: 0;
+  border-radius: 6px;
+  background: none;
+  box-shadow: 0 0 14px rgba(245, 184, 61, 0.25);
+}
+
+.facility-icon {
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: rgba(8, 13, 18, 0.6);
+  box-sizing: content-box;
+  width: 32px;
+  height: 32px;
+}
+
+.map-node {
+  grid-template-columns: auto auto 1fr;
+}
+
+.map-node > .pixel-icon {
+  grid-row: span 2;
+}
+
+.map-node strong,
+.map-node small {
+  grid-column: 3;
+}
+
+.mobile-tabbar button .tab-icon {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto;
 }
