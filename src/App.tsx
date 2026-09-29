@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { INITIAL_GAME_STATE, RESOURCE_DEFINITIONS } from "./game/state/initialState";
+import { LOGO_ART, getFacilityArt, getResourceArt, getTabArt } from "./assets/art";
 import { exportSave, importSave, loadGame, resetSave, saveGame } from "./game/state/storage";
 import type { FacilityId, GameState, ResourceDefinition, ResourceId } from "./game/state/types";
 import {
@@ -308,6 +309,7 @@ function App() {
           {builtFacilities.map((facility) => (
             <button key={facility.id} className={`map-node ${facility.active ? "active" : "inactive"}`} onClick={() => setSelectedFacilityId(facility.id)} type="button">
               <span className="map-node-light" />
+              <img className="pixel-icon" src={getFacilityArt(facility.id)} alt="" width={32} height={32} />
               <strong>{facility.name}</strong>
               <small>LV {facility.level} � T{facility.tier} � {facility.active ? "ACTIVE" : "OFFLINE"}</small>
             </button>
@@ -334,7 +336,7 @@ function App() {
                   const unlockProgress = facility.unlockRequirements.map((requirement) => ({ ...requirement, currentLevel: game.facilities[requirement.facilityId]?.level ?? 0, facilityName: game.facilities[requirement.facilityId]?.name ?? requirement.facilityId }));
                   return (
                     <article key={facility.id} className="facility-card selectable" onClick={() => setSelectedFacilityId(facility.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedFacilityId(facility.id); }} role="button" tabIndex={0}>
-                      <div className="facility-topline"><div><p className="eyebrow">Tier {facility.tier}</p><h3>{facility.name}</h3></div><div className="facility-badges"><span className="badge level-badge">Lv {facility.level}</span><span className={`badge ${statusClass}`}>{facility.status}</span></div></div>
+                      <div className="facility-topline"><div className="icon-label"><img className="pixel-icon facility-icon" src={getFacilityArt(facility.id)} alt="" width={40} height={40} /><div><p className="eyebrow">Tier {facility.tier}</p><h3>{facility.name}</h3></div></div><div className="facility-badges"><span className="badge level-badge">Lv {facility.level}</span><span className={`badge ${statusClass}`}>{facility.status}</span></div></div>
                       <div className="facility-meta"><span>{facility.level === 0 ? "Not built" : `Level ${facility.level}`}</span><span>{facility.unlocked ? facility.active ? "Running" : "Paused" : "Locked"}</span></div>
                       {!facility.unlocked && unlockProgress.length > 0 && <div className="requirement-list unlock-requirements"><label>Unlock requirements</label><div className="pill-list">{unlockProgress.map((requirement) => <span key={`${facility.id}-${requirement.facilityId}`} className={`pill ${requirement.currentLevel >= requirement.level ? "green" : "muted"}`}>{requirement.facilityName} Lv {requirement.level} ({requirement.currentLevel}/{requirement.level})</span>)}</div></div>}
                       <div className="requirement-list"><label>{facility.level === 0 ? "Build requirements" : "Next upgrade requirements"}</label><div className="pill-list"><span className={`pill ${game.cash >= cost.cash ? "green" : "muted"}`}>Cash: {formatMoney(cost.cash)}</span>{Object.entries(cost.materials).map(([resourceId, amount]) => <span key={resourceId} className={`pill ${(game.warehouses.central.inventory[resourceId as ResourceId]?.amount ?? 0) >= (amount ?? 0) ? "green" : "muted"}`}>{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {formatQuantity(amount ?? 0)}</span>)}<span className="pill">Workers: {facility.workersNeeded * Math.max(1, facility.level)}</span><span className="pill">Upkeep: {formatMoney(facility.baseUpkeep * Math.max(1, facility.level))}/s</span></div></div>
@@ -365,12 +367,12 @@ function App() {
               <table className="warehouse-table">
                 <thead><tr><th>Resource</th><th>Stock</th><th>Rate</th><th>Capacity</th><th>Auto-sell</th><th>Sell</th></tr></thead>
                 <tbody>
-                  {rows.map(({ resourceId, name, amount, rate, price, unit }) => {
+                  {rows.map(({ resourceId, name, amount, rate, price, unit, category }) => {
                     const stockPercent = storage.capacity === 0 ? 0 : (amount / storage.capacity) * 100;
                     const autoSell = game.warehouses.central.inventory[resourceId].autoSell;
                     return (
                       <tr key={resourceId}>
-                        <td><div className="resource-name"><span>{name}</span><small>{unit}</small></div></td>
+                        <td><div className="resource-name"><span className="icon-label"><img className="pixel-icon" src={getResourceArt(resourceId, category)} alt="" width={24} height={24} />{name}</span><small>{unit}</small></div></td>
                         <td><span key={`${resourceId}-${amount}`} className="stock-value">{formatQuantity(amount)}</span></td>
                         <td className={rate >= 0 ? "positive" : "danger"}>{formatRate(rate)}</td>
                         <td><div className="progress-wrap"><div className="progress-bar"><span style={{ width: `${Math.min(stockPercent, 100)}%` }} /></div></div></td>
@@ -393,9 +395,9 @@ function App() {
       <section className="panel">
         <div className="panel-header"><div><p className="eyebrow">Market</p><h2>Buy & sell</h2></div><span className="muted">Using {CATEGORY_LABELS[warehouseFilter]} filter</span></div>
         <div className="market-list">
-          {filteredResourceRows.map(({ resourceId, name, amount, price }) => (
+          {filteredResourceRows.map(({ resourceId, name, amount, price, category }) => (
             <div key={resourceId} className="market-item">
-              <div><strong>{name}</strong><span>{formatQuantity(amount)} on hand</span></div>
+              <div className="icon-label"><img className="pixel-icon" src={getResourceArt(resourceId, category)} alt="" width={24} height={24} /><div><strong>{name}</strong><span>{formatQuantity(amount)} on hand</span></div></div>
               <div className="market-actions">
                 <button className="small" onClick={() => handleBuy(resourceId, 25)}>Buy 25 � {formatMoney(price * 25 * 1.2)}</button>
                 <button className="small secondary" onClick={() => handleSell(resourceId, Math.max(10, Math.round(amount * 0.25)))}>Sell {formatMoney(price * Math.max(10, Math.round(amount * 0.25)))}</button>
@@ -440,7 +442,7 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-wrap">
-          <div className="brand-mark">IF</div>
+          <img className="brand-mark pixel-icon" src={LOGO_ART} alt="Industrial Frontier logo" width={36} height={36} />
           <div>
             <p className="eyebrow">Industrial Frontier</p>
             {isConsolePage && <h1>Operations Console</h1>}
@@ -482,7 +484,7 @@ function App() {
             }}
             type="button"
           >
-            <span className="tab-icon">{item.icon}</span>
+            <img className="tab-icon pixel-icon" src={getTabArt(item.id)} alt="" width={24} height={24} />
             {item.label}
           </button>
         ))}
