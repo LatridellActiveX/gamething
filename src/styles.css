@@ -1782,3 +1782,15 @@ button.secondary:hover:not(:disabled) {
     animation: none !important;
   }
 }
+
+/* Market rows: keep icon beside the name/stock text */
+.market-item > .icon-label {
+  flex-direction: row;
+  gap: 0.6rem;
+}
+
+.market-item .icon-label > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
