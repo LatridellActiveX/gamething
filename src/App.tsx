@@ -18,6 +18,7 @@ import {
   upgradeFacility,
   updateFacilityUnlocks,
 } from "./game/engine";
+import { DeltaFloat } from "./ui/DeltaFloat";
 import { FlowMap } from "./ui/FlowMap";
 import { useReducedMotion } from "./ui/hooks";
 
@@ -447,6 +448,7 @@ function App() {
           <div className="mini-stat">
             <span>Cash</span>
             <strong>{formatMoney(game.cash)}</strong>
+            <DeltaFloat value={game.cash} threshold={1} disabled={reducedMotion} format={(delta) => `${delta >= 0 ? "+" : "-"}${formatMoney(Math.abs(delta))}`} />
           </div>
           <div className="mini-stat">
             <span>Power</span>
@@ -455,6 +457,7 @@ function App() {
           <div className="mini-stat">
             <span>Storage</span>
             <strong>{storage.used.toFixed(0)}/{storage.capacity}</strong>
+            <DeltaFloat value={storage.used} threshold={0.5} disabled={reducedMotion} format={(delta) => `${delta >= 0 ? "+" : "-"}${Math.abs(delta).toFixed(1)} units`} />
           </div>
           <div className="mini-stat">
             <span>Workers</span>

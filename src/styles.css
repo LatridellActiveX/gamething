@@ -1248,3 +1248,76 @@ textarea:focus-visible {
   opacity: 0.45;
   filter: none;
 }
+
+/* ==========================================================================
+   UI animations: floating production numbers
+   ========================================================================== */
+.production-float-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.production-float {
+  position: absolute;
+  transform: translate(-50%, 0);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: rgba(6, 11, 16, 0.85);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  color: var(--green);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(52, 211, 153, 0.6);
+  animation: float-up 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.production-float.cash {
+  color: var(--amber);
+  border-color: rgba(251, 191, 36, 0.45);
+  text-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+}
+
+@keyframes float-up {
+  0%   { opacity: 0; transform: translate(-50%, 6px) scale(0.85); }
+  15%  { opacity: 1; transform: translate(-50%, -4px) scale(1.05); }
+  70%  { opacity: 1; transform: translate(-50%, -22px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -34px) scale(0.98); }
+}
+
+.delta-float-layer {
+  position: absolute;
+  right: 0.5rem;
+  top: 0.35rem;
+  pointer-events: none;
+}
+
+.delta-float {
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  animation: delta-rise 1.6s ease-out forwards;
+}
+
+.delta-float.up {
+  color: var(--green);
+  text-shadow: 0 0 6px rgba(52, 211, 153, 0.55);
+}
+
+.delta-float.down {
+  color: var(--red);
+  text-shadow: 0 0 6px rgba(251, 113, 133, 0.55);
+}
+
+@keyframes delta-rise {
+  0%   { opacity: 0; transform: translateY(8px); }
+  20%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-12px); }
+}

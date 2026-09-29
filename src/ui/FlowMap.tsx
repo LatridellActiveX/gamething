@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getFacilityArt } from "../assets/art";
 import { RESOURCE_DEFINITIONS } from "../game/state/initialState";
 import type { FacilityId, GameState, ResourceId } from "../game/state/types";
@@ -8,6 +8,29 @@ type Rect = { x: number; y: number; w: number; h: number };
 type FlowLink = { key: string; from: FacilityId; to: FacilityId; resourceId: ResourceId | "power"; kind: "item" | "power" };
 
 const MAX_LINKS = 36;
+/** One production floater every N ms, rotating through online facilities, so it never gets noisy. */
+const FLOATER_INTERVAL_MS = 1400;
+const FLOATER_LIFETIME_MS = 1700;
+const MAX_FLOATERS = 4;
+
+type ProductionFloater = { id: number; facilityId: FacilityId; text: string; tone: "item" | "cash" };
+let floaterSeq = 0;
+
+const formatAmount = (value: number) => (value >= 10 ? value.toFixed(0) : value >= 1 ? value.toFixed(1) : value.toFixed(2));
+
+/** "+1.3 Bauxite" for the facility's largest per-tick output (consumer goods show cash earned). */
+function describeProduction(facility: Facility): Pick<ProductionFloater, "text" | "tone"> | null {
+  let best: { resourceId: ResourceId; amount: number } | null = null;
+  for (const [resourceId, rate] of Object.entries(facility.outputRate) as Array<[ResourceId, number]>) {
+    if (resourceId === "power") continue;
+    const amount = rate * facility.level;
+    if (!best || amount > best.amount) best = { resourceId, amount };
+  }
+  if (!best) return null;
+  const definition = RESOURCE_DEFINITIONS[best.resourceId];
+  if (definition.category === "consumer") return { text: `+$${Math.round(definition.baseValue * 0.85 * best.amount).toLocaleString()}`, tone: "cash" };
+  return { text: `+${formatAmount(best.amount)} ${definition.name}`, tone: "item" };
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   raw: "#fbbf24",
@@ -96,6 +119,39 @@ export function FlowMap({ facilities, onSelect, reducedMotion, flashKeys }: Flow
     return () => observer.disconnect();
   }, [layoutKey]);
 
+  const facilitiesRef = useRef(facilities);
+  facilitiesRef.current = facilities;
+  const [floaters, setFloaters] = useState<ProductionFloater[]>([]);
+  const cursorRef = useRef(0);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setFloaters([]);
+      return;
+    }
+    const timers = new Set<number>();
+    const interval = window.setInterval(() => {
+      if (document.hidden) return;
+      const producers = facilitiesRef.current.filter((facility) => facility.status === "online" && describeProduction(facility));
+      if (producers.length === 0) return;
+      const facility = producers[cursorRef.current % producers.length];
+      cursorRef.current += 1;
+      const production = describeProduction(facility);
+      if (!production) return;
+      const floater: ProductionFloater = { id: ++floaterSeq, facilityId: facility.id, ...production };
+      setFloaters((current) => [...current.slice(-(MAX_FLOATERS - 1)), floater]);
+      const timer = window.setTimeout(() => {
+        setFloaters((current) => current.filter((item) => item.id !== floater.id));
+        timers.delete(timer);
+      }, FLOATER_LIFETIME_MS);
+      timers.add(timer);
+    }, FLOATER_INTERVAL_MS);
+    return () => {
+      window.clearInterval(interval);
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [reducedMotion]);
+
   const links = useMemo(() => computeFlowLinks(facilities), [facilities]);
   const byId = useMemo(() => Object.fromEntries(facilities.map((facility) => [facility.id, facility])) as Record<FacilityId, Facility>, [facilities]);
 
@@ -148,6 +204,17 @@ export function FlowMap({ facilities, onSelect, reducedMotion, flashKeys }: Flow
           </button>
         );
       })}
+      <div className="production-float-layer" aria-hidden="true">
+        {floaters.map((floater) => {
+          const rect = rects[floater.facilityId];
+          if (!rect) return null;
+          return (
+            <span key={floater.id} className={`production-float ${floater.tone}`} style={{ left: rect.x + rect.w / 2, top: rect.y + 6 }}>
+              {floater.text}
+            </span>
+          );
+        })}
+      </div>
       {facilities.length === 0 && <p className="muted">No facilities built. Use the catalog below to deploy your first assets.</p>}
     </div>
   );
