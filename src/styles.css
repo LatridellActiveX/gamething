@@ -1442,7 +1442,7 @@ textarea:focus-visible {
 }
 
 .map-node {
-  animation: node-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: node-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
 @keyframes node-in {
@@ -1478,4 +1478,201 @@ textarea:focus-visible {
 
 @keyframes modal-glow {
   30% { box-shadow: 0 -8px 48px rgba(0, 0, 0, 0.7), 0 0 40px rgba(52, 211, 153, 0.35); border-color: rgba(52, 211, 153, 0.8); }
+}
+
+/* ==========================================================================
+   UI animations: status badges, hover / press feedback
+   ========================================================================== */
+.status-badge {
+  gap: 0.4rem;
+  transition: background 300ms ease, color 300ms ease, box-shadow 300ms ease;
+}
+
+.status-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: currentColor;
+  flex: none;
+}
+
+.status-badge.good {
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.25);
+}
+
+.status-badge.good::before {
+  background: var(--green);
+  animation: status-breathe 2s ease-in-out infinite;
+}
+
+.status-badge.bad {
+  box-shadow: 0 0 0 1px rgba(251, 113, 133, 0.35);
+  animation: status-alert 1.2s ease-in-out infinite;
+}
+
+.status-badge.bad::before {
+  background: var(--red);
+  animation: status-blink 0.8s steps(2, jump-none) infinite;
+}
+
+.status-badge.warn {
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35);
+  animation: status-warn 1.8s ease-in-out infinite;
+}
+
+.status-badge.warn::before {
+  background: var(--amber);
+}
+
+.status-badge.muted::before {
+  opacity: 0.5;
+}
+
+@keyframes status-breathe {
+  0%, 100% { box-shadow: 0 0 2px var(--green); opacity: 0.75; }
+  50%      { box-shadow: 0 0 8px var(--green), 0 0 12px var(--green); opacity: 1; }
+}
+
+@keyframes status-alert {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(251, 113, 133, 0.35); }
+  50%      { box-shadow: 0 0 0 1px rgba(251, 113, 133, 0.8), 0 0 14px rgba(251, 113, 133, 0.35); }
+}
+
+@keyframes status-warn {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3); }
+  50%      { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.75), 0 0 12px rgba(251, 191, 36, 0.3); }
+}
+
+@keyframes status-blink {
+  0%   { opacity: 1; }
+  100% { opacity: 0.25; }
+}
+
+/* Map node status lights */
+.map-node.status-starved .map-node-light {
+  background: var(--red);
+  animation: light-blink 0.9s steps(2, jump-none) infinite;
+}
+
+.map-node.status-storage-full .map-node-light {
+  background: var(--amber);
+  animation: light-amber 1.6s ease-in-out infinite;
+}
+
+.map-node.status-starved { border-color: rgba(251, 113, 133, 0.45); }
+.map-node.status-storage-full { border-color: rgba(251, 191, 36, 0.45); }
+.map-node.inactive { opacity: 0.72; }
+.map-node.inactive .map-node-light { background: #64748b; box-shadow: none; }
+
+@keyframes light-blink {
+  0%   { opacity: 1; box-shadow: 0 0 10px var(--red); }
+  100% { opacity: 0.3; box-shadow: none; }
+}
+
+@keyframes light-amber {
+  0%, 100% { box-shadow: 0 0 4px var(--amber); }
+  50%      { box-shadow: 0 0 12px var(--amber), 0 0 20px var(--amber); }
+}
+
+/* Hover / press feedback */
+button {
+  transition: transform 140ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 140ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0) scale(0.96);
+  transition-duration: 60ms;
+}
+
+button.secondary:hover:not(:disabled) {
+  border-color: rgba(34, 211, 238, 0.55);
+  background: rgba(56, 189, 248, 0.14);
+}
+
+.facility-actions button:not(.secondary),
+.settings-stack button,
+.market-actions button:not(.secondary) {
+  position: relative;
+  overflow: hidden;
+}
+
+.facility-actions button:not(.secondary)::after,
+.settings-stack button::after,
+.market-actions button:not(.secondary)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.facility-actions button:not(.secondary):hover:not(:disabled)::after,
+.settings-stack button:hover:not(:disabled)::after,
+.market-actions button:not(.secondary):hover:not(:disabled)::after {
+  opacity: 1;
+  animation: button-sheen 700ms ease-out;
+  left: 130%;
+}
+
+@keyframes button-sheen {
+  from { left: -60%; }
+  to   { left: 130%; }
+}
+
+.selectable:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: 60ms;
+}
+
+.map-node {
+  transition: border-color 150ms, box-shadow 150ms, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms;
+}
+
+.map-node:hover {
+  transform: translateY(-2px);
+}
+
+.map-node:active {
+  transform: scale(0.97);
+}
+
+.map-node:hover .pixel-icon,
+.facility-card:hover .facility-icon {
+  animation: icon-bob 900ms ease-in-out infinite;
+}
+
+@keyframes icon-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+
+.kpi,
+.mini-stat,
+.market-item {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.kpi:hover,
+.mini-stat:hover {
+  border-color: rgba(34, 211, 238, 0.45);
+  box-shadow: 0 6px 24px rgba(34, 211, 238, 0.1);
+}
+
+.market-item:hover {
+  transform: translateX(3px);
+  box-shadow: -3px 0 0 var(--cyan), 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.warehouse-table tbody tr {
+  transition: background 150ms ease;
+}
+
+.warehouse-table tbody tr:hover {
+  background: rgba(34, 211, 238, 0.05);
 }
