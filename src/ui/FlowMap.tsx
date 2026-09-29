@@ -209,7 +209,7 @@ export function FlowMap({ facilities, onSelect, reducedMotion, flashKeys }: Flow
           const rect = rects[floater.facilityId];
           if (!rect) return null;
           return (
-            <span key={floater.id} className={`production-float ${floater.tone}`} style={{ left: rect.x + rect.w / 2, top: rect.y + 6 }}>
+            <span key={floater.id} className={`production-float ${floater.tone}`} style={{ left: rect.x + rect.w / 2, top: rect.y - 8 }}>
               {floater.text}
             </span>
           );

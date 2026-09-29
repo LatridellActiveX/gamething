@@ -1563,7 +1563,8 @@ textarea:focus-visible {
 .map-node.status-starved { border-color: rgba(251, 113, 133, 0.45); }
 .map-node.status-storage-full { border-color: rgba(251, 191, 36, 0.45); }
 .map-node.inactive { opacity: 0.72; }
-.map-node.inactive .map-node-light { background: #64748b; box-shadow: none; }
+.map-node.inactive .map-node-light,
+.map-node.status-offline .map-node-light { background: #64748b; box-shadow: none; animation: none; }
 
 @keyframes light-blink {
   0%   { opacity: 1; box-shadow: 0 0 10px var(--red); }
@@ -1780,6 +1781,15 @@ button.secondary:hover:not(:disabled) {
   .status-badge,
   .map-node-light {
     animation: none !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .facility-map {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    column-gap: 1rem;
+    row-gap: 1rem;
+    padding: 0.6rem;
   }
 }
 
