@@ -121,6 +121,14 @@ function normalizeSave(state: GameState): GameState {
 
   legacy.workforce ??= structuredClone(starter.workforce);
   legacy.cashFlow ??= structuredClone(starter.cashFlow);
+  // Older saves stored total running costs under the misleading name `cashFlow.net`.
+  const legacyCashFlow = legacy.cashFlow as GameState["cashFlow"] & { net?: number };
+  if (typeof legacyCashFlow.totalCost !== "number") {
+    legacyCashFlow.totalCost = typeof legacyCashFlow.net === "number"
+      ? legacyCashFlow.net
+      : (legacyCashFlow.upkeep ?? 0) + (legacyCashFlow.wages ?? 0);
+  }
+  delete legacyCashFlow.net;
   legacy.workforce.capacity = 20 + (legacy.facilities.workerHousing?.level ?? 0) * 15;
   legacy.warehouses.central.capacity = computeWarehouseCapacity(legacy);
   return legacy;
