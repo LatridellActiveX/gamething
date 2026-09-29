@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getFacilityArt } from "../assets/art";
 import { RESOURCE_DEFINITIONS } from "../game/state/initialState";
 import type { FacilityId, GameState, ResourceId } from "../game/state/types";
+import { layoutFacilitiesByChain } from "./flowLayout";
 
 type Facility = GameState["facilities"][FacilityId];
 type Rect = { x: number; y: number; w: number; h: number };
@@ -95,12 +96,21 @@ type FlowMapProps = {
   flashKeys: Partial<Record<FacilityId, number>>;
 };
 
-export function FlowMap({ facilities, onSelect, reducedMotion, flashKeys }: FlowMapProps) {
+export function FlowMap({ facilities: builtFacilities, onSelect, reducedMotion, flashKeys }: FlowMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef(new Map<FacilityId, HTMLButtonElement>());
   const [rects, setRects] = useState<Partial<Record<FacilityId, Rect>>>({});
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const layoutKey = facilities.map((facility) => facility.id).join("|");
+  // Production-chain layout depends only on which facilities are built, so it stays put as levels/status change.
+  const builtKey = builtFacilities.map((facility) => facility.id).sort().join("|");
+  const layoutGroups = useMemo(
+    () => layoutFacilitiesByChain(builtFacilities).map((group) => ({ key: group.key, label: group.label, ids: group.facilities.map((facility) => facility.id) })),
+    [builtKey],
+  );
+  const currentById = new Map(builtFacilities.map((facility) => [facility.id, facility]));
+  const groups = layoutGroups.map((group) => ({ ...group, facilities: group.ids.map((id) => currentById.get(id)).filter((facility): facility is Facility => Boolean(facility)) }));
+  const facilities = groups.flatMap((group) => group.facilities);
+  const layoutKey = layoutGroups.map((group) => `${group.key}:${group.ids.join(",")}`).join("|");
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -152,8 +162,8 @@ export function FlowMap({ facilities, onSelect, reducedMotion, flashKeys }: Flow
     };
   }, [reducedMotion]);
 
-  const links = useMemo(() => computeFlowLinks(facilities), [facilities]);
-  const byId = useMemo(() => Object.fromEntries(facilities.map((facility) => [facility.id, facility])) as Record<FacilityId, Facility>, [facilities]);
+  const links = useMemo(() => computeFlowLinks(facilities), [builtFacilities, layoutKey]);
+  const byId = Object.fromEntries(facilities.map((facility) => [facility.id, facility])) as Record<FacilityId, Facility>;
 
   return (
     <div className="facility-map" ref={containerRef}>
@@ -182,7 +192,12 @@ export function FlowMap({ facilities, onSelect, reducedMotion, flashKeys }: Flow
           })}
         </svg>
       )}
-      {facilities.map((facility, index) => {
+      {groups.map((group) => [
+        <div key={`group-${group.key}`} className={`map-group-label map-group-${group.key}`}>
+          {group.label}
+        </div>,
+        ...group.facilities.map((facility) => {
+        const index = facilities.indexOf(facility);
         const flashKey = flashKeys[facility.id];
         return (
           <button
@@ -203,7 +218,8 @@ export function FlowMap({ facilities, onSelect, reducedMotion, flashKeys }: Flow
             {flashKey !== undefined && <span key={flashKey} className="node-flash" aria-hidden="true" />}
           </button>
         );
-      })}
+        }),
+      ])}
       <div className="production-float-layer" aria-hidden="true">
         {floaters.map((floater) => {
           const rect = rects[floater.facilityId];
