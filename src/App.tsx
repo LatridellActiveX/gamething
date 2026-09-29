@@ -89,6 +89,7 @@ function App() {
     }
   });
   const [tab, setTab] = useState<TabId>("dashboard");
+  const [tabDirection, setTabDirection] = useState<"forward" | "back">("forward");
   const [importText, setImportText] = useState("");
   const [upgradeNotice, setUpgradeNotice] = useState("Factories online and ready.");
   const [selectedFacilityId, setSelectedFacilityId] = useState<FacilityId | null>(null);
@@ -462,7 +463,7 @@ function App() {
         case "settings": return renderSettings();
       }
     })();
-    return <section className="tab-page" key={tab} aria-label={`${tab} page`}>{pageContent}</section>;
+    return <section className={`tab-page tab-enter-${tabDirection}`} key={tab} aria-label={`${tab} page`}>{pageContent}</section>;
   };
 
   const isConsolePage = tab === "dashboard";
@@ -508,13 +509,17 @@ function App() {
       </main>
 
       <nav className="mobile-tabbar" aria-label="Main navigation">
-        {TAB_ITEMS.map((item) => (
+        <span className="tab-indicator" aria-hidden="true" style={{ transform: `translateX(${Math.max(0, TAB_ITEMS.findIndex((item) => item.id === tab)) * 100}%)` }} />
+        {TAB_ITEMS.map((item, index) => (
           <button
             key={item.id}
             className={tab === item.id ? "active" : ""}
             onClick={() => {
               setSelectedFacilityId(null);
+              if (item.id === tab) return;
+              setTabDirection(index >= TAB_ITEMS.findIndex((entry) => entry.id === tab) ? "forward" : "back");
               setTab(item.id);
+              window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
             }}
             type="button"
           >
