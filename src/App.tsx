@@ -64,11 +64,11 @@ const FACILITY_FILTERS: Array<{ value: FacilityCatalogFilter; label: string }> =
   { value: "tier-5", label: "Tier 5" },
 ];
 const FACILITY_TIER_LABELS: Record<number, string> = {
-  1: "Tier 1 � Extraction & utilities",
-  2: "Tier 2 � Primary processing",
-  3: "Tier 3 � Component fabrication",
-  4: "Tier 4 � Advanced manufacturing",
-  5: "Tier 5 � Frontier projects",
+  1: "Tier 1 — Extraction & utilities",
+  2: "Tier 2 — Primary processing",
+  3: "Tier 3 — Component fabrication",
+  4: "Tier 4 — Advanced manufacturing",
+  5: "Tier 5 — Frontier projects",
 };
 
 const formatMoney = (value: number) => `$${Math.round(value).toLocaleString()}`;
@@ -355,7 +355,7 @@ function App() {
             const isCollapsed = collapsedTiers[tier] ?? false;
             return (
               <section className="panel" key={tier}>
-                <div className="panel-header"><div><p className="eyebrow">Tier {tier}</p><h2>{FACILITY_TIER_LABELS[tier] ?? `Tier ${tier}`}</h2></div><button className="secondary small" onClick={() => toggleTierCollapse(tier)} type="button">{isCollapsed ? "Expand" : "Collapse"} � {facilities.length}</button></div>
+                <div className="panel-header"><div><p className="eyebrow">Tier {tier}</p><h2>{FACILITY_TIER_LABELS[tier] ?? `Tier ${tier}`}</h2></div><button className="secondary small" onClick={() => toggleTierCollapse(tier)} type="button">{isCollapsed ? "Expand" : "Collapse"} · {facilities.length}</button></div>
                 {!isCollapsed && <div className="facility-grid">{facilities.map((facility) => {
                   const cost = getFacilityUpgradeCost(facility);
                   const statusClass = facility.status === "online" ? "good" : facility.status === "starved" ? "bad" : facility.status === "storage-full" ? "warn" : "muted";
@@ -371,7 +371,7 @@ function App() {
                       {!facility.unlocked && unlockProgress.length > 0 && <div className="requirement-list unlock-requirements"><label>Unlock requirements</label><div className="pill-list">{unlockProgress.map((requirement) => <span key={`${facility.id}-${requirement.facilityId}`} className={`pill ${requirement.currentLevel >= requirement.level ? "green" : "muted"}`}>{requirement.facilityName} Lv {requirement.level} ({requirement.currentLevel}/{requirement.level})</span>)}</div></div>}
                       <div className="requirement-list"><label>{facility.level === 0 ? "Build requirements" : "Next upgrade requirements"}</label><div className="pill-list"><span className={`pill ${game.cash >= cost.cash ? "green" : "muted"}`}>Cash: {formatMoney(cost.cash)}</span>{Object.entries(cost.materials).map(([resourceId, amount]) => <span key={resourceId} className={`pill ${(game.warehouses.central.inventory[resourceId as ResourceId]?.amount ?? 0) >= (amount ?? 0) ? "green" : "muted"}`}>{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {formatQuantity(amount ?? 0)}</span>)}<span className="pill">Workers: {facility.workersNeeded * Math.max(1, facility.level)}</span><span className="pill">Upkeep: {formatMoney(facility.baseUpkeep * Math.max(1, facility.level))}/s</span></div></div>
                       <div className="small-grid"><div><label>Inputs</label><div className="pill-list">{Object.entries(facility.inputRate).length === 0 ? <span className="pill muted">None</span> : Object.entries(facility.inputRate).map(([resourceId, rate]) => <span key={resourceId} className="pill">{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {rate.toFixed(2)}/s</span>)}</div></div><div><label>Outputs</label><div className="pill-list">{Object.entries(facility.outputRate).length === 0 ? <span className="pill muted">None</span> : Object.entries(facility.outputRate).map(([resourceId, rate]) => <span key={resourceId} className="pill green">{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {rate.toFixed(2)}/s</span>)}</div></div></div>
-                      <div className="facility-actions"><button className="secondary" onClick={(event) => { event.stopPropagation(); handleToggle(facility.id); }} disabled={!facility.unlocked || facility.level === 0}>Power: {facility.active ? "ON" : "OFF"}</button><button onClick={(event) => { event.stopPropagation(); handleUpgrade(facility.id, event.currentTarget); }} disabled={!facility.unlocked || !canAfford} title={!facility.unlocked ? "Complete the unlock requirements" : !canAfford ? "Need the listed cash and materials" : `Upgrade ${facility.name}`}>{!facility.unlocked ? "Locked � See requirements" : facility.level === 0 && canAfford ? `Build � ${formatMoney(cost.cash)}` : canAfford ? `Upgrade � ${formatMoney(cost.cash)}` : "Need listed requirements"}</button></div>
+                      <div className="facility-actions"><button className="secondary" onClick={(event) => { event.stopPropagation(); handleToggle(facility.id); }} disabled={!facility.unlocked || facility.level === 0}>Power: {facility.active ? "ON" : "OFF"}</button><button onClick={(event) => { event.stopPropagation(); handleUpgrade(facility.id, event.currentTarget); }} disabled={!facility.unlocked || !canAfford} title={!facility.unlocked ? "Complete the unlock requirements" : !canAfford ? "Need the listed cash and materials" : `Upgrade ${facility.name}`}>{!facility.unlocked ? "Locked · See requirements" : facility.level === 0 && canAfford ? `Build · ${formatMoney(cost.cash)}` : canAfford ? `Upgrade · ${formatMoney(cost.cash)}` : "Need listed requirements"}</button></div>
                     </article>
                   );
                 })}</div>}
@@ -429,7 +429,7 @@ function App() {
             <div key={resourceId} className="market-item">
               <div className="icon-label"><img className="pixel-icon" src={getResourceArt(resourceId, category)} alt="" width={24} height={24} /><div><strong>{name}</strong><span>{formatQuantity(amount)} on hand</span></div></div>
               <div className="market-actions">
-                <button className="small" onClick={() => handleBuy(resourceId, 25)}>Buy 25 � {formatMoney(price * 25 * 1.2)}</button>
+                <button className="small" onClick={() => handleBuy(resourceId, 25)}>Buy 25 · {formatMoney(price * 25 * 1.2)}</button>
                 <button className="small secondary" onClick={() => handleSell(resourceId, Math.max(10, Math.round(amount * 0.25)))}>Sell {formatMoney(price * Math.max(10, Math.round(amount * 0.25)))}</button>
               </div>
             </div>
@@ -532,7 +532,7 @@ function App() {
         <div className="facility-modal-backdrop" onClick={() => setSelectedFacilityId(null)}>
           <section className={`facility-modal ${flashKeys[selectedFacility.id] !== undefined ? "is-flashing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="facility-modal-title" onClick={(event) => event.stopPropagation()}>
             <div className="panel-header"><div><p className="eyebrow">Facility control</p><h2 id="facility-modal-title">{selectedFacility.name}</h2></div><button className="secondary modal-close" onClick={() => setSelectedFacilityId(null)} aria-label="Close facility controls">Close</button></div>
-            <div className="facility-modal-status"><span className={`badge status-badge ${selectedFacility.active ? "good" : "muted"}`}>{selectedFacility.active ? "POWER ON" : "POWER OFF"}</span><span key={selectedFacility.level} className={`muted ${flashKeys[selectedFacility.id] !== undefined ? "level-pop" : ""}`}>Tier {selectedFacility.tier} � {selectedFacility.level === 0 ? "Not built" : `Level ${selectedFacility.level}`}</span></div>
+            <div className="facility-modal-status"><span className={`badge status-badge ${selectedFacility.active ? "good" : "muted"}`}>{selectedFacility.active ? "POWER ON" : "POWER OFF"}</span><span key={selectedFacility.level} className={`muted ${flashKeys[selectedFacility.id] !== undefined ? "level-pop" : ""}`}>Tier {selectedFacility.tier} · {selectedFacility.level === 0 ? "Not built" : `Level ${selectedFacility.level}`}</span></div>
             <div className="metric-list">
               <div className="metric-row"><span>Power demand</span><strong>{selectedFacility.powerConsumption * selectedFacility.level} MW</strong></div>
               <div className="metric-row"><span>Workers required</span><strong>{selectedFacility.workersNeeded * selectedFacility.level}</strong></div>

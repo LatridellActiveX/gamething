@@ -199,7 +199,7 @@ export function FlowMap({ facilities, onSelect, reducedMotion, flashKeys }: Flow
             <span className="map-node-light" />
             <img className="pixel-icon" src={getFacilityArt(facility.id)} alt="" width={32} height={32} />
             <strong>{facility.name}</strong>
-            <small>LV {facility.level} � T{facility.tier} � {facility.active ? "ACTIVE" : "OFFLINE"}</small>
+            <small>LV {facility.level} · T{facility.tier} · {facility.active ? "ACTIVE" : "OFFLINE"}</small>
             {flashKey !== undefined && <span key={flashKey} className="node-flash" aria-hidden="true" />}
           </button>
         );
