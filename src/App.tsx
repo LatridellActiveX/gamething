@@ -18,6 +18,8 @@ import {
   upgradeFacility,
   updateFacilityUnlocks,
 } from "./game/engine";
+import { FlowMap } from "./ui/FlowMap";
+import { useReducedMotion } from "./ui/hooks";
 
 const TAB_ITEMS = [
   { id: "dashboard", label: "Console", icon: "⚡" },
@@ -96,6 +98,8 @@ function App() {
     "Power network and logistics are operating in nominal state.",
   ]);
   const gameRef = useRef<GameState>(game);
+  const reducedMotion = useReducedMotion();
+  const [flashKeys] = useState<Partial<Record<FacilityId, number>>>({});
 
   useEffect(() => {
     gameRef.current = game;
@@ -305,17 +309,7 @@ function App() {
     <div className="facility-sections">
       <section className="panel">
         <div className="panel-header"><div><p className="eyebrow">Operations map</p><h2>Built facilities</h2></div><span className="muted">{builtFacilities.length} built assets</span></div>
-        <div className="facility-map">
-          {builtFacilities.map((facility) => (
-            <button key={facility.id} className={`map-node ${facility.active ? "active" : "inactive"}`} onClick={() => setSelectedFacilityId(facility.id)} type="button">
-              <span className="map-node-light" />
-              <img className="pixel-icon" src={getFacilityArt(facility.id)} alt="" width={32} height={32} />
-              <strong>{facility.name}</strong>
-              <small>LV {facility.level} � T{facility.tier} � {facility.active ? "ACTIVE" : "OFFLINE"}</small>
-            </button>
-          ))}
-          {builtFacilities.length === 0 && <p className="muted">No facilities built. Use the catalog below to deploy your first assets.</p>}
-        </div>
+        <FlowMap facilities={builtFacilities} onSelect={setSelectedFacilityId} reducedMotion={reducedMotion} flashKeys={flashKeys} />
       </section>
       <section>
         <div className="panel-header catalog-header"><div><p className="eyebrow">Construction catalog</p><h2>All facilities</h2></div><span className="muted">Filter and expand tiers to manage the full catalog</span></div>

@@ -1165,3 +1165,86 @@ textarea:focus-visible {
   height: 24px;
   margin: 0 auto;
 }
+
+/* ==========================================================================
+   UI animations: conveyor flow map
+   ========================================================================== */
+.facility-map {
+  position: relative;
+  column-gap: 1.6rem;
+  row-gap: 1.4rem;
+  padding: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.flow-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.map-node {
+  position: relative;
+  z-index: 1;
+}
+
+.flow-rail,
+.flow-belt {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.flow-rail {
+  stroke-width: 5;
+  opacity: 0.12;
+}
+
+.flow-belt {
+  stroke-width: 2;
+  stroke-dasharray: 6 8;
+  opacity: 0.35;
+}
+
+.flow-power .flow-rail {
+  stroke-width: 3;
+}
+
+.flow-power .flow-belt {
+  stroke-width: 1.5;
+  stroke-dasharray: 2 7;
+}
+
+.flow-link.is-flowing .flow-belt {
+  opacity: 0.85;
+  filter: drop-shadow(0 0 3px currentColor);
+  animation: belt-move 0.9s linear infinite;
+}
+
+.flow-power.is-flowing .flow-belt {
+  animation-duration: 0.55s;
+}
+
+.flow-link.is-idle .flow-belt {
+  stroke-dasharray: 2 10;
+  opacity: 0.25;
+}
+
+.flow-item {
+  fill: currentColor;
+  stroke: rgba(6, 11, 16, 0.9);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+@keyframes belt-move {
+  to { stroke-dashoffset: -14; }
+}
+
+.flow-power.is-flowing .flow-belt {
+  opacity: 0.45;
+  filter: none;
+}
