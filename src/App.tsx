@@ -156,7 +156,7 @@ function App() {
   const storage = useMemo(() => computeWarehouseSummary(game), [game]);
   const powerBalance = useMemo(() => ({ production: game.power.productionPerSecond, consumption: game.power.consumptionPerSecond, surplus: game.power.productionPerSecond - game.power.consumptionPerSecond }), [game]);
   const financials = useMemo(() => computeFinancials(structuredClone(game)), [game]);
-  const builtFacilities = useMemo(() => Object.values(game.facilities).filter((facility) => facility.level > 0).sort((a, b) => b.level - a.level || a.tier - b.tier || a.name.localeCompare(b.name)), [game]);
+  const builtFacilities = useMemo(() => Object.values(game.facilities).filter((facility) => facility.level > 0).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)), [game]);
   const catalogFacilities = useMemo(() => Object.values(game.facilities).filter((facility) => facilityCategory === "all" || facility.tier === Number(facilityCategory.split("-")[1])).sort((a, b) => a.tier - b.tier || Number(b.unlocked) - Number(a.unlocked) || b.level - a.level || a.name.localeCompare(b.name)), [game, facilityCategory]);
   const facilitySections = useMemo(() => [1, 2, 3, 4, 5].map((tier) => ({ tier, facilities: catalogFacilities.filter((facility) => facility.tier === tier) })).filter((section) => section.facilities.length > 0), [catalogFacilities]);
   const addLog = (entry: string) => setLog((current) => [entry, ...current].slice(0, 8));
@@ -295,7 +295,7 @@ function App() {
             <span className="kpi-icon">💰</span>
             <span>Cash</span>
             <strong>{formatMoney(displayCash)}</strong>
-            <small className={financials.net > 0 ? "danger" : "muted"}>-{formatMoney(Math.max(0, financials.net))}/s upkeep & wages</small>
+            <small className={financials.totalCost > 0 ? "danger" : "muted"}>-{formatMoney(financials.totalCost)}/s upkeep & wages</small>
           </div>
           <div className="kpi accent-green">
             <span className="kpi-icon">⚡</span>
@@ -328,8 +328,8 @@ function App() {
           <div className="metric-row"><span>Current Cash</span><strong>{formatMoney(game.cash)}</strong></div>
           <div className="metric-row"><span>Facility Upkeep</span><strong className="danger">-{formatMoney(financials.upkeep)} / sec</strong></div>
           <div className="metric-row"><span>Labor Wages</span><strong className="danger">-{formatMoney(financials.wages)} / sec</strong></div>
-          <div className="metric-row"><span>Net Cash Flow</span><strong className={financials.net > 0 ? "positive" : "danger"}>{financials.net > 0 ? "+" : "-"}{formatMoney(Math.abs(financials.net))} / sec</strong></div>
-          <div className="metric-row"><span>Runway</span><strong>{financials.net >= 0 ? "Infinity" : formatDuration(game.cash / Math.abs(financials.net))}</strong></div>
+          <div className="metric-row"><span>Total Operating Costs</span><strong className={financials.totalCost > 0 ? "danger" : "muted"}>-{formatMoney(financials.totalCost)} / sec</strong></div>
+          <div className="metric-row"><span>Runway</span><strong>{financials.totalCost > 0 ? formatDuration(game.cash / financials.totalCost) : "Infinity"}</strong></div>
         </div>
       </section>
       <section className="panel wide">

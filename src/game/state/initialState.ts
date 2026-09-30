@@ -290,7 +290,7 @@ export const INITIAL_GAME_STATE: GameState = {
   cash: 25_000,
   power: { available: 0, productionPerSecond: 0, consumptionPerSecond: 0 },
   workforce: { capacity: 20, activeDemand: 0 },
-  cashFlow: { upkeep: 0, wages: 0, net: 0 },
+  cashFlow: { upkeep: 0, wages: 0, totalCost: 0 },
   warehouses: {
     central: { capacity: 20000, inventory: createCentralInventory() },
     energy: { capacity: 250, inventory: { power: { amount: 50, reserved: 0, autoSell: { enabled: false, amount: 0 } } } },
