@@ -1804,3 +1804,20 @@ button.secondary:hover:not(:disabled) {
   flex-direction: column;
   gap: 0.1rem;
 }
+
+/* Operations map: production-chain group headers (Power / Extraction / Processing / Finished / Support). */
+.map-group-label {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 1;
+  margin: 0.15rem 0 -0.85rem;
+  color: var(--muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.map-group-label:first-child {
+  margin-top: 0;
+}

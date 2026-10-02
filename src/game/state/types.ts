@@ -291,7 +291,8 @@ export interface GameState {
   cashFlow: {
     upkeep: number;
     wages: number;
-    net: number;
+    /** Total running costs per second (upkeep + wages). Always >= 0; this is an outflow, not a net figure. */
+    totalCost: number;
   };
   warehouses: {
     central: WarehouseState;

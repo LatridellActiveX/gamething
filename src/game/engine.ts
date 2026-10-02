@@ -50,7 +50,7 @@ export function computeFinancials(state: GameState) {
   const activeDemand = activeFacilities.reduce((total, facility) => total + facility.workersNeeded * facility.level, 0);
   const wages = activeDemand * WAGE_RATE;
   state.workforce.activeDemand = activeDemand;
-  state.cashFlow = { upkeep, wages, net: upkeep + wages };
+  state.cashFlow = { upkeep, wages, totalCost: upkeep + wages };
   return state.cashFlow;
 }
 
@@ -155,7 +155,7 @@ export function tickGameState(state: GameState, seconds: number): GameState {
     applyAutoSell(state);
     computePowerStats(state);
     const financials = computeFinancials(state);
-    state.cash = Math.max(0, state.cash - financials.net);
+    state.cash = Math.max(0, state.cash - financials.totalCost);
     if (state.cash <= 0) {
       for (const facility of Object.values(state.facilities)) {
         if (facility.baseUpkeep > 0 || facility.workersNeeded > 0) {
