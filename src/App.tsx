@@ -20,6 +20,9 @@ import {
 } from "./game/engine";
 import { DeltaFloat } from "./ui/DeltaFloat";
 import { MapView } from "./ui/MapView";
+import { BuildCatalog } from "./ui/BuildCatalog";
+import { getRecommendation } from "./game/tech/catalog";
+import { CATEGORY_META, TECH_NODES, getEra } from "./game/tech/techTree";
 import { useReducedMotion, useTweenedNumber } from "./ui/hooks";
 import { Meter } from "./ui/Meter";
 
@@ -33,7 +36,6 @@ const TAB_ITEMS = [
 
 type TabId = (typeof TAB_ITEMS)[number]["id"];
 type WarehouseFilter = "all" | Exclude<ResourceDefinition["category"], "energy">;
-type FacilityCatalogFilter = "all" | "tier-1" | "tier-2" | "tier-3" | "tier-4" | "tier-5";
 type ResourceRow = {
   resourceId: ResourceId;
   name: string;
@@ -55,22 +57,6 @@ const CATEGORY_LABELS: Record<WarehouseFilter, string> = {
   construction: "Construction supplies",
   consumer: "Consumer goods",
 };
-const FACILITY_FILTERS: Array<{ value: FacilityCatalogFilter; label: string }> = [
-  { value: "all", label: "All tiers" },
-  { value: "tier-1", label: "Tier 1" },
-  { value: "tier-2", label: "Tier 2" },
-  { value: "tier-3", label: "Tier 3" },
-  { value: "tier-4", label: "Tier 4" },
-  { value: "tier-5", label: "Tier 5" },
-];
-const FACILITY_TIER_LABELS: Record<number, string> = {
-  1: "Tier 1 — Extraction & utilities",
-  2: "Tier 2 — Primary processing",
-  3: "Tier 3 — Component fabrication",
-  4: "Tier 4 — Advanced manufacturing",
-  5: "Tier 5 — Frontier projects",
-};
-
 const formatMoney = (value: number) => `$${Math.round(value).toLocaleString()}`;
 const formatRate = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(2)}/s`;
 const formatQuantity = (value: number) => (Math.round(value * 100) / 100).toLocaleString();
@@ -93,9 +79,7 @@ function App() {
   const [importText, setImportText] = useState("");
   const [upgradeNotice, setUpgradeNotice] = useState("Factories online and ready.");
   const [selectedFacilityId, setSelectedFacilityId] = useState<FacilityId | null>(null);
-  const [facilityCategory, setFacilityCategory] = useState<FacilityCatalogFilter>("all");
   const [warehouseFilter, setWarehouseFilter] = useState<WarehouseFilter>("all");
-  const [collapsedTiers, setCollapsedTiers] = useState<Record<number, boolean>>({});
   const [log, setLog] = useState<string[]>([
     "System online. Industrial Frontier booted.",
     "Power network and logistics are operating in nominal state.",
@@ -157,8 +141,7 @@ function App() {
   const powerBalance = useMemo(() => ({ production: game.power.productionPerSecond, consumption: game.power.consumptionPerSecond, surplus: game.power.productionPerSecond - game.power.consumptionPerSecond }), [game]);
   const financials = useMemo(() => computeFinancials(structuredClone(game)), [game]);
   const builtFacilities = useMemo(() => Object.values(game.facilities).filter((facility) => facility.level > 0).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)), [game]);
-  const catalogFacilities = useMemo(() => Object.values(game.facilities).filter((facility) => facilityCategory === "all" || facility.tier === Number(facilityCategory.split("-")[1])).sort((a, b) => a.tier - b.tier || Number(b.unlocked) - Number(a.unlocked) || b.level - a.level || a.name.localeCompare(b.name)), [game, facilityCategory]);
-  const facilitySections = useMemo(() => [1, 2, 3, 4, 5].map((tier) => ({ tier, facilities: catalogFacilities.filter((facility) => facility.tier === tier) })).filter((section) => section.facilities.length > 0), [catalogFacilities]);
+  const recommendation = useMemo(() => getRecommendation(game), [game]);
   const addLog = (entry: string) => setLog((current) => [entry, ...current].slice(0, 8));
 
   const triggerFlash = (facilityId: FacilityId) => {
@@ -280,7 +263,6 @@ function App() {
     addLog("Save reset to the starter state.");
   };
 
-  const toggleTierCollapse = (tier: number) => setCollapsedTiers((current) => ({ ...current, [tier]: !current[tier] }));
   const selectedFacility = selectedFacilityId ? game.facilities[selectedFacilityId] : null;
   const selectedCost = selectedFacility ? getFacilityUpgradeCost(selectedFacility) : null;
   const selectedHasMaterials = Boolean(selectedFacility && selectedCost && Object.entries(selectedCost.materials).every(([resourceId, amount]) => (game.warehouses.central.inventory[resourceId as ResourceId]?.amount ?? 0) >= (amount ?? 0)));
@@ -340,47 +322,19 @@ function App() {
   );
 
   const renderFacilities = () => (
-    <div className="facility-sections">
-      <section className="panel">
-        <div className="panel-header"><div><p className="eyebrow">Operations map</p><h2>Built facilities</h2></div><span className="muted">{builtFacilities.length} built assets</span></div>
-        <MapView facilities={builtFacilities} onSelect={setSelectedFacilityId} reducedMotion={reducedMotion} flashKeys={flashKeys} powerShort={powerBalance.production < powerBalance.consumption} />
-      </section>
-      <section>
-        <div className="panel-header catalog-header"><div><p className="eyebrow">Construction catalog</p><h2>All facilities</h2></div><span className="muted">Filter and expand tiers to manage the full catalog</span></div>
-        <div className="pill-list" style={{ marginBottom: 16 }}>
-          {FACILITY_FILTERS.map((filter) => <button key={filter.value} className={`small ${facilityCategory === filter.value ? "" : "secondary"}`} onClick={() => setFacilityCategory(filter.value)} type="button">{filter.label}</button>)}
-        </div>
-        <div className="facility-sections">
-          {facilitySections.map(({ tier, facilities }) => {
-            const isCollapsed = collapsedTiers[tier] ?? false;
-            return (
-              <section className="panel" key={tier}>
-                <div className="panel-header"><div><p className="eyebrow">Tier {tier}</p><h2>{FACILITY_TIER_LABELS[tier] ?? `Tier ${tier}`}</h2></div><button className="secondary small" onClick={() => toggleTierCollapse(tier)} type="button">{isCollapsed ? "Expand" : "Collapse"} · {facilities.length}</button></div>
-                {!isCollapsed && <div className="facility-grid">{facilities.map((facility) => {
-                  const cost = getFacilityUpgradeCost(facility);
-                  const statusClass = facility.status === "online" ? "good" : facility.status === "starved" ? "bad" : facility.status === "storage-full" ? "warn" : "muted";
-                  const hasMaterials = Object.entries(cost.materials).every(([resourceId, amount]) => (game.warehouses.central.inventory[resourceId as ResourceId]?.amount ?? 0) >= (amount ?? 0));
-                  const canAfford = game.cash >= cost.cash && hasMaterials;
-                  const unlockProgress = facility.unlockRequirements.map((requirement) => ({ ...requirement, currentLevel: game.facilities[requirement.facilityId]?.level ?? 0, facilityName: game.facilities[requirement.facilityId]?.name ?? requirement.facilityId }));
-                  const flashKey = flashKeys[facility.id];
-                  return (
-                    <article key={facility.id} className={`facility-card selectable ${flashKey !== undefined ? "is-flashing" : ""}`} onClick={() => setSelectedFacilityId(facility.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedFacilityId(facility.id); }} role="button" tabIndex={0}>
-                      <div className="facility-topline"><div className="icon-label"><img className="pixel-icon facility-icon" src={getFacilityArt(facility.id)} alt="" width={40} height={40} /><div><p className="eyebrow">Tier {facility.tier}</p><h3>{facility.name}</h3></div></div><div className="facility-badges"><span key={facility.level} className={`badge level-badge ${flashKey !== undefined ? "pop" : ""}`}>Lv {facility.level}</span><span className={`badge status-badge ${statusClass}`}>{facility.status}</span></div></div>
-                      {flashKey !== undefined && <><span key={`flash-${flashKey}`} className="card-flash" aria-hidden="true" /><span key={`toast-${flashKey}`} className="levelup-toast" aria-hidden="true">{facility.level === 1 ? "Built!" : `Level ${facility.level}!`}</span></>}
-                      <div className="facility-meta"><span>{facility.level === 0 ? "Not built" : `Level ${facility.level}`}</span><span>{facility.unlocked ? facility.active ? "Running" : "Paused" : "Locked"}</span></div>
-                      {!facility.unlocked && unlockProgress.length > 0 && <div className="requirement-list unlock-requirements"><label>Unlock requirements</label><div className="pill-list">{unlockProgress.map((requirement) => <span key={`${facility.id}-${requirement.facilityId}`} className={`pill ${requirement.currentLevel >= requirement.level ? "green" : "muted"}`}>{requirement.facilityName} Lv {requirement.level} ({requirement.currentLevel}/{requirement.level})</span>)}</div></div>}
-                      <div className="requirement-list"><label>{facility.level === 0 ? "Build requirements" : "Next upgrade requirements"}</label><div className="pill-list"><span className={`pill ${game.cash >= cost.cash ? "green" : "muted"}`}>Cash: {formatMoney(cost.cash)}</span>{Object.entries(cost.materials).map(([resourceId, amount]) => <span key={resourceId} className={`pill ${(game.warehouses.central.inventory[resourceId as ResourceId]?.amount ?? 0) >= (amount ?? 0) ? "green" : "muted"}`}>{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {formatQuantity(amount ?? 0)}</span>)}<span className="pill">Workers: {facility.workersNeeded * Math.max(1, facility.level)}</span><span className="pill">Upkeep: {formatMoney(facility.baseUpkeep * Math.max(1, facility.level))}/s</span></div></div>
-                      <div className="small-grid"><div><label>Inputs</label><div className="pill-list">{Object.entries(facility.inputRate).length === 0 ? <span className="pill muted">None</span> : Object.entries(facility.inputRate).map(([resourceId, rate]) => <span key={resourceId} className="pill">{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {rate.toFixed(2)}/s</span>)}</div></div><div><label>Outputs</label><div className="pill-list">{Object.entries(facility.outputRate).length === 0 ? <span className="pill muted">None</span> : Object.entries(facility.outputRate).map(([resourceId, rate]) => <span key={resourceId} className="pill green">{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {rate.toFixed(2)}/s</span>)}</div></div></div>
-                      <div className="facility-actions"><button className="secondary" onClick={(event) => { event.stopPropagation(); handleToggle(facility.id); }} disabled={!facility.unlocked || facility.level === 0}>Power: {facility.active ? "ON" : "OFF"}</button><button onClick={(event) => { event.stopPropagation(); handleUpgrade(facility.id, event.currentTarget); }} disabled={!facility.unlocked || !canAfford} title={!facility.unlocked ? "Complete the unlock requirements" : !canAfford ? "Need the listed cash and materials" : `Upgrade ${facility.name}`}>{!facility.unlocked ? "Locked · See requirements" : facility.level === 0 && canAfford ? `Build · ${formatMoney(cost.cash)}` : canAfford ? `Upgrade · ${formatMoney(cost.cash)}` : "Need listed requirements"}</button></div>
-                    </article>
-                  );
-                })}</div>}
-              </section>
-            );
-          })}
-        </div>
-      </section>
-    </div>
+    <BuildCatalog
+      game={game}
+      recommendation={recommendation}
+      flashKeys={flashKeys}
+      onBuild={handleUpgrade}
+      onSelect={setSelectedFacilityId}
+      map={(
+        <section className="panel">
+          <div className="panel-header"><div><p className="eyebrow">Operations map</p><h2>Built facilities</h2></div><span className="muted">{builtFacilities.length} built assets</span></div>
+          <MapView facilities={builtFacilities} onSelect={setSelectedFacilityId} reducedMotion={reducedMotion} flashKeys={flashKeys} powerShort={powerBalance.production < powerBalance.consumption} />
+        </section>
+      )}
+    />
   );
 
   const renderWarehouse = () => (
@@ -532,7 +486,8 @@ function App() {
         <div className="facility-modal-backdrop" onClick={() => setSelectedFacilityId(null)}>
           <section className={`facility-modal ${flashKeys[selectedFacility.id] !== undefined ? "is-flashing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="facility-modal-title" onClick={(event) => event.stopPropagation()}>
             <div className="panel-header"><div><p className="eyebrow">Facility control</p><h2 id="facility-modal-title">{selectedFacility.name}</h2></div><button className="secondary modal-close" onClick={() => setSelectedFacilityId(null)} aria-label="Close facility controls">Close</button></div>
-            <div className="facility-modal-status"><span className={`badge status-badge ${selectedFacility.active ? "good" : "muted"}`}>{selectedFacility.active ? "POWER ON" : "POWER OFF"}</span><span key={selectedFacility.level} className={`muted ${flashKeys[selectedFacility.id] !== undefined ? "level-pop" : ""}`}>Tier {selectedFacility.tier} · {selectedFacility.level === 0 ? "Not built" : `Level ${selectedFacility.level}`}</span></div>
+            <div className="facility-modal-status"><span className={`badge status-badge ${selectedFacility.active ? "good" : "muted"}`}>{selectedFacility.active ? "POWER ON" : "POWER OFF"}</span><span key={selectedFacility.level} className={`muted ${flashKeys[selectedFacility.id] !== undefined ? "level-pop" : ""}`}>Era {getEra(TECH_NODES[selectedFacility.id].era).numeral} · {CATEGORY_META[TECH_NODES[selectedFacility.id].category].label} · {selectedFacility.level === 0 ? "Not built" : `Level ${selectedFacility.level}`}</span></div>
+            <p className="modal-why">{TECH_NODES[selectedFacility.id].why}</p>
             <div className="metric-list">
               <div className="metric-row"><span>Power demand</span><strong>{selectedFacility.powerConsumption * selectedFacility.level} MW</strong></div>
               <div className="metric-row"><span>Workers required</span><strong>{selectedFacility.workersNeeded * selectedFacility.level}</strong></div>
