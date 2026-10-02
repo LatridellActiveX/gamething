@@ -19,7 +19,7 @@ import {
   updateFacilityUnlocks,
 } from "./game/engine";
 import { DeltaFloat } from "./ui/DeltaFloat";
-import { FlowMap } from "./ui/FlowMap";
+import { MapView } from "./ui/MapView";
 import { useReducedMotion, useTweenedNumber } from "./ui/hooks";
 import { Meter } from "./ui/Meter";
 
@@ -343,7 +343,7 @@ function App() {
     <div className="facility-sections">
       <section className="panel">
         <div className="panel-header"><div><p className="eyebrow">Operations map</p><h2>Built facilities</h2></div><span className="muted">{builtFacilities.length} built assets</span></div>
-        <FlowMap facilities={builtFacilities} onSelect={setSelectedFacilityId} reducedMotion={reducedMotion} flashKeys={flashKeys} />
+        <MapView facilities={builtFacilities} onSelect={setSelectedFacilityId} reducedMotion={reducedMotion} flashKeys={flashKeys} powerShort={powerBalance.production < powerBalance.consumption} />
       </section>
       <section>
         <div className="panel-header catalog-header"><div><p className="eyebrow">Construction catalog</p><h2>All facilities</h2></div><span className="muted">Filter and expand tiers to manage the full catalog</span></div>

@@ -5,7 +5,7 @@ type Facility = GameState["facilities"][FacilityId];
 export type FlowGroupKey = "power" | "extraction" | "processing" | "finished" | "support";
 export type FlowGroup = { key: FlowGroupKey; label: string; facilities: Facility[] };
 
-const GROUP_ORDER: Array<{ key: FlowGroupKey; label: string }> = [
+export const FLOW_GROUP_ORDER: Array<{ key: FlowGroupKey; label: string }> = [
   { key: "power", label: "Power generation" },
   { key: "extraction", label: "Raw extraction" },
   { key: "processing", label: "Processing" },
@@ -61,7 +61,7 @@ export function layoutFacilitiesByChain(facilities: Facility[]): FlowGroup[] {
     return value;
   };
 
-  const groups = new Map<FlowGroupKey, Facility[]>(GROUP_ORDER.map(({ key }) => [key, []]));
+  const groups = new Map<FlowGroupKey, Facility[]>(FLOW_GROUP_ORDER.map(({ key }) => [key, []]));
   for (const facility of sorted) groups.get(classify(facility))!.push(facility);
   groups.get("processing")!.sort((a, b) => depth(a.id) - depth(b.id) || byTierThenName(a, b));
 
@@ -89,5 +89,5 @@ export function layoutFacilitiesByChain(facilities: Facility[]): FlowGroup[] {
   }
   reorder("power", (id) => producers.get(id) ?? []);
 
-  return GROUP_ORDER.map(({ key, label }) => ({ key, label, facilities: groups.get(key)! })).filter((group) => group.facilities.length > 0);
+  return FLOW_GROUP_ORDER.map(({ key, label }) => ({ key, label, facilities: groups.get(key)! })).filter((group) => group.facilities.length > 0);
 }
