@@ -21,7 +21,9 @@ import {
 import { DeltaFloat } from "./ui/DeltaFloat";
 import { MapView } from "./ui/MapView";
 import { BuildCatalog } from "./ui/BuildCatalog";
-import { getRecommendation } from "./game/tech/catalog";
+import { canAffordFacility, getRecommendation } from "./game/tech/catalog";
+import { getGuideProgress } from "./game/tech/guide";
+import { GuidePanel, GuideSteps } from "./ui/GuidePanel";
 import { CATEGORY_META, TECH_NODES, getEra } from "./game/tech/techTree";
 import { useReducedMotion, useTweenedNumber } from "./ui/hooks";
 import { Meter } from "./ui/Meter";
@@ -142,6 +144,8 @@ function App() {
   const financials = useMemo(() => computeFinancials(structuredClone(game)), [game]);
   const builtFacilities = useMemo(() => Object.values(game.facilities).filter((facility) => facility.level > 0).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)), [game]);
   const recommendation = useMemo(() => getRecommendation(game), [game]);
+  const guide = useMemo(() => getGuideProgress(game), [game]);
+  const recommendationReady = Boolean(recommendation && game.facilities[recommendation.facilityId].unlocked && canAffordFacility(game, recommendation.facilityId));
   const addLog = (entry: string) => setLog((current) => [entry, ...current].slice(0, 8));
 
   const triggerFlash = (facilityId: FacilityId) => {
@@ -240,6 +244,30 @@ function App() {
     addLog(`Bought ${formatQuantity(bought)} ${RESOURCE_DEFINITIONS[resourceId].name} for ${formatMoney(bought * getResourcePrice(resourceId) * 1.2)}.`);
   };
 
+  const goToTab = (id: TabId) => {
+    setSelectedFacilityId(null);
+    if (id === tab) return;
+    setTabDirection(TAB_ITEMS.findIndex((entry) => entry.id === id) >= TAB_ITEMS.findIndex((entry) => entry.id === tab) ? "forward" : "back");
+    setTab(id);
+    window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+  };
+
+  const handleDismissGuide = () => {
+    const next = structuredClone(gameRef.current);
+    next.progress.guideDismissed = true;
+    gameRef.current = next;
+    setGame(next);
+    addLog("Getting-started guide hidden. You can bring it back from the Save tab.");
+  };
+
+  const handleRestoreGuide = () => {
+    const next = structuredClone(gameRef.current);
+    next.progress.guideDismissed = false;
+    gameRef.current = next;
+    setGame(next);
+    addLog("Getting-started guide restored on the Build tab.");
+  };
+
   const handleExport = async () => {
     await navigator.clipboard.writeText(exportSave(gameRef.current));
     addLog("Current save exported to clipboard.");
@@ -270,6 +298,13 @@ function App() {
 
   const renderDashboard = () => (
     <div className="panel-grid">
+      {guide.active && recommendation && (
+        <section className="panel wide gd-callout" aria-label="Next step">
+          <img className="pixel-icon" src={getFacilityArt(recommendation.facilityId)} alt="" width={44} height={44} />
+          <div><p className="eyebrow">Getting started · Step {guide.currentIndex + 1} of {guide.steps.length}</p><h2>{guide.steps[guide.currentIndex].label}</h2><p className="muted">{recommendation.title === guide.steps[guide.currentIndex].label ? "" : `${recommendation.title}: `}{recommendation.reason}</p></div>
+          <button type="button" className="gold" onClick={() => goToTab(guide.steps[guide.currentIndex].id === "sell" ? "warehouse" : "facilities")}>{guide.steps[guide.currentIndex].id === "sell" ? "Open Cargo" : "Go to Build"}</button>
+        </section>
+      )}
       <section className="panel wide">
         <div className="panel-header"><div><p className="eyebrow">Overview</p><h2>Factory performance</h2></div><span className="status-banner">{upgradeNotice}</span></div>
         <div className="kpis">
@@ -328,6 +363,9 @@ function App() {
       flashKeys={flashKeys}
       onBuild={handleUpgrade}
       onSelect={setSelectedFacilityId}
+      bannerEyebrow={guide.active ? `Recommended next · Step ${guide.currentIndex + 1} of ${guide.steps.length}` : undefined}
+      bannerExtra={guide.active ? <GuideSteps progress={guide} /> : undefined}
+      side={guide.active ? <GuidePanel game={game} progress={guide} onDismiss={handleDismissGuide} onOpenCargo={() => goToTab("warehouse")} /> : undefined}
       map={(
         <section className="panel">
           <div className="panel-header"><div><p className="eyebrow">Operations map</p><h2>Built facilities</h2></div><span className="muted">{builtFacilities.length} built assets</span></div>
@@ -402,6 +440,7 @@ function App() {
           <textarea value={importText} onChange={(event) => setImportText(event.target.value)} placeholder="Paste a save JSON here to import..." />
           <button className="secondary" onClick={handleImport}>Import Save</button>
           <button className="danger" onClick={handleReset}>Reset Save</button>
+          {game.progress.guideDismissed && !guide.finished && <button className="secondary" onClick={handleRestoreGuide}>Show getting-started guide</button>}
         </div>
       </section>
     </div>
@@ -479,6 +518,7 @@ function App() {
           >
             <img className="tab-icon pixel-icon" src={getTabArt(item.id)} alt="" width={24} height={24} />
             {item.label}
+            {item.id === "facilities" && tab !== "facilities" && recommendationReady && <span className="tab-dot" aria-label="A recommended build is ready" />}
           </button>
         ))}
       </nav>
