@@ -1,6 +1,6 @@
 # Industrial Frontier
 
-##This project was developed using AI assisted development through and through. 
+## This project was developed using AI assisted development through and through. 
 
 An idle factory-building game made with React, TypeScript, and Vite. Build extraction and production facilities, balance power and storage, and trade resources on the market. Progress is saved in the browser automatically.
 
