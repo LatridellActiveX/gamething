@@ -224,6 +224,15 @@ function App() {
     addLog(`${next.facilities[facilityId].name} upgraded to level ${next.facilities[facilityId].level}.`);
   };
 
+  const handleShowOnMap = (facilityId: FacilityId) => {
+    setTree(null);
+    goToTab("facilities");
+    window.setTimeout(() => {
+      document.getElementById("operations-map")?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+      triggerFlash(facilityId);
+    }, 80);
+  };
+
   const handleToggle = (facilityId: FacilityId) => {
     const next = toggleFacility(structuredClone(gameRef.current), facilityId);
     gameRef.current = next;
@@ -405,7 +414,7 @@ function App() {
       bannerExtra={guide.active ? <GuideSteps progress={guide} /> : undefined}
       side={guide.active ? <GuidePanel game={game} progress={guide} onDismiss={handleDismissGuide} onOpenCargo={() => goToTab("warehouse")} /> : undefined}
       map={(
-        <section className="panel">
+        <section className="panel" id="operations-map">
           <div className="panel-header"><div><p className="eyebrow">Operations map</p><h2>Built facilities</h2></div><span className="muted">{builtFacilities.length} built assets</span></div>
           <MapView facilities={builtFacilities} onSelect={setSelectedFacilityId} reducedMotion={reducedMotion} flashKeys={flashKeys} powerShort={powerBalance.production < powerBalance.consumption} />
         </section>
@@ -562,7 +571,7 @@ function App() {
       </nav>
       {tree && (
         <Suspense fallback={<div className="tt-overlay tt-loading">Loading tech tree…</div>}>
-          <TechTree game={game} recommendation={recommendation} reducedMotion={reducedMotion} initialFocus={tree.focus} onClose={() => setTree(null)} onBuild={handleUpgrade} onOpenFacility={setSelectedFacilityId} />
+          <TechTree game={game} recommendation={recommendation} reducedMotion={reducedMotion} initialFocus={tree.focus} onClose={() => setTree(null)} onBuild={handleUpgrade} onOpenFacility={setSelectedFacilityId} onShowOnMap={handleShowOnMap} />
         </Suspense>
       )}
       {selectedFacility && selectedCost && (

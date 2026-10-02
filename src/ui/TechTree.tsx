@@ -23,6 +23,7 @@ export type TechTreeProps = {
   onClose: () => void;
   onBuild: (id: FacilityId, trigger?: HTMLElement | null) => void;
   onOpenFacility: (id: FacilityId) => void;
+  onShowOnMap: (id: FacilityId) => void;
 };
 
 const money = (value: number) => `$${Math.round(value).toLocaleString()}`;
@@ -43,7 +44,7 @@ export function getTreeNodeState(game: GameState, id: FacilityId, recommendedId:
   return TECH_NODES[id].era > frontierEra + 1 && !isEraOpen(game, TECH_NODES[id].era) ? "fog" : "locked";
 }
 
-export default function TechTree({ game, recommendation, reducedMotion, initialFocus, onClose, onBuild, onOpenFacility }: TechTreeProps) {
+export default function TechTree({ game, recommendation, reducedMotion, initialFocus, onClose, onBuild, onOpenFacility, onShowOnMap }: TechTreeProps) {
   const recommendedId = recommendation?.facilityId ?? null;
   const [selected, setSelected] = useState<FacilityId>(initialFocus ?? recommendedId ?? "coalGenerator");
   const [sheetOpen, setSheetOpen] = useState(true);
@@ -54,10 +55,34 @@ export default function TechTree({ game, recommendation, reducedMotion, initialF
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const dragDistance = useRef(0);
   const mobile = size.w > 0 && size.w < 600;
+  const [query, setQuery] = useState("");
+  const [fresh, setFresh] = useState<Set<FacilityId>>(new Set());
+  const prevStates = useRef<Record<FacilityId, string> | null>(null);
 
   const facilities = Object.values(game.facilities);
   const frontierEra = getCurrentEra(game, recommendedId);
   const states = useMemo(() => Object.fromEntries((Object.keys(TECH_NODES) as FacilityId[]).map((id) => [id, getTreeNodeState(game, id, recommendedId, frontierEra)])) as Record<FacilityId, TreeNodeState>, [game, recommendedId, frontierEra]);
+  // Unlock animation: nodes that were just researched/unlocked, built or upgraded pop for a moment.
+  useEffect(() => {
+    const snapshot = Object.fromEntries(facilities.map((facility) => [facility.id, `${facility.unlocked ? 1 : 0}:${facility.level}:${states[facility.id] === "researchable" ? 1 : 0}`])) as Record<FacilityId, string>;
+    const previous = prevStates.current;
+    prevStates.current = snapshot;
+    if (!previous) return;
+    const opened = (Object.keys(snapshot) as FacilityId[]).filter((id) => previous[id] !== snapshot[id]);
+    if (opened.length === 0) return;
+    setFresh((current) => new Set([...current, ...opened]));
+    const timer = window.setTimeout(() => setFresh((current) => new Set([...current].filter((id) => !opened.includes(id)))), 1600);
+    return () => window.clearTimeout(timer);
+  }, [game, states]);
+  const matches = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return null;
+    return (Object.keys(TECH_NODES) as FacilityId[]).filter((id) => {
+      const facility = game.facilities[id];
+      const outputs = Object.keys(facility.outputRate).map((resourceId) => RESOURCE_DEFINITIONS[resourceId as ResourceId]?.name ?? resourceId).join(" ");
+      return `${facility.name} ${outputs} ${CATEGORY_META[TECH_NODES[id].category].label}`.toLowerCase().includes(needle);
+    });
+  }, [query, game.facilities]);
 
   const clamp = useCallback((next: Camera): Camera => {
     const k = Math.min(MAX_K, Math.max(MIN_K, next.k));
@@ -256,7 +281,7 @@ export default function TechTree({ game, recommendation, reducedMotion, initialF
                 <button
                   key={id}
                   type="button"
-                  className={`tt-node is-${state} ${selected === id ? "is-selected" : ""}`}
+                  className={`tt-node is-${state} ${selected === id ? "is-selected" : ""} ${matches ? (matches.includes(id) ? "is-match" : "is-dim") : ""} ${fresh.has(id) ? "is-fresh" : ""}`}
                   style={{ left: pos.x, top: pos.y }}
                   onClick={() => pick(id)}
                   aria-pressed={selected === id}
@@ -268,6 +293,25 @@ export default function TechTree({ game, recommendation, reducedMotion, initialF
                 </button>
               );
             })}
+          </div>
+          <div className="tt-hud tt-search" role="search">
+            <input
+              type="search"
+              value={query}
+              placeholder="Search buildings or resources…"
+              aria-label="Search the tech tree"
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter" && matches?.[0]) jumpTo(matches[0]); if (event.key === "Escape") { event.stopPropagation(); setQuery(""); } }}
+            />
+            {matches && (
+              <ul className="tt-results">
+                {matches.length === 0 && <li className="tt-none">No matches</li>}
+                {matches.slice(0, 6).map((id) => (
+                  <li key={id}><button type="button" onClick={() => jumpTo(id)}><img className="pixel-icon" src={getFacilityArt(id)} alt="" width={20} height={20} /><span>{game.facilities[id].name}<small>Era {getEra(TECH_NODES[id].era).numeral} · {STATE_LABEL[states[id]]}</small></span></button></li>
+                ))}
+                {matches.length > 6 && <li className="tt-none">+{matches.length - 6} more highlighted</li>}
+              </ul>
+            )}
           </div>
           <div className="tt-hud tt-legend" aria-hidden="true">
             <span><i className="tt-sw built" />Built</span><span><i className="tt-sw available" />Available</span><span><i className="tt-sw recommended" />Recommended</span><span><i className="tt-sw researchable" />Research</span><span><i className="tt-sw locked" />Locked</span>
@@ -308,6 +352,7 @@ export default function TechTree({ game, recommendation, reducedMotion, initialF
           onJump={jumpTo}
           onBuild={onBuild}
           onOpenFacility={onOpenFacility}
+          onShowOnMap={onShowOnMap}
         />
       </div>
     </div>
@@ -333,9 +378,10 @@ type DetailProps = {
   onJump: (id: FacilityId) => void;
   onBuild: (id: FacilityId, trigger?: HTMLElement | null) => void;
   onOpenFacility: (id: FacilityId) => void;
+  onShowOnMap: (id: FacilityId) => void;
 };
 
-function DetailPanel({ game, id, state, recommendation, open, mobile, onToggle, onJump, onBuild, onOpenFacility }: DetailProps) {
+function DetailPanel({ game, id, state, recommendation, open, mobile, onToggle, onJump, onBuild, onOpenFacility, onShowOnMap }: DetailProps) {
   const facility = game.facilities[id];
   const node = TECH_NODES[id];
   const era = getEra(node.era);
@@ -425,7 +471,10 @@ function DetailPanel({ game, id, state, recommendation, open, mobile, onToggle, 
         ) : (
           <button type="button" disabled>Locked · {requirements.filter((requirement) => requirement.have < requirement.level).map((requirement) => `${game.facilities[requirement.facilityId].name} Lv ${requirement.level}`).join(" + ")}</button>
         )}
-        <button type="button" className="secondary small tt-hide-m" onClick={() => onOpenFacility(id)}>Facility details</button>
+        <div className="tt-cta-links">
+          {facility.level > 0 && <button type="button" className="secondary small" onClick={() => onShowOnMap(id)}>Show on map</button>}
+          <button type="button" className="secondary small tt-hide-m" onClick={() => onOpenFacility(id)}>Facility details</button>
+        </div>
       </div>
     </aside>
   );
