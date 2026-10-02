@@ -2,7 +2,7 @@
 // never mutates game state.
 import { Html, MapControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { MapControls as MapControlsImpl } from "three-stdlib";
 import type { FacilityId, GameState } from "../../game/state/types";
@@ -21,6 +21,40 @@ export type FactoryMap3DProps = {
   powerShort: boolean;
   flashKeys: Partial<Record<FacilityId, number>>;
 };
+
+/**
+ * Fixed zoom-out cap (distance from the camera target). Deliberately NOT tied to city size:
+ * the camera never auto-refits as the city grows; the player keeps their zoom and pans to new
+ * buildings. Only the pan bounds and the far plane follow the layout.
+ */
+export const MAX_CAMERA_DISTANCE = 90;
+const MIN_CAMERA_DISTANCE = LOT_PITCH * 1.6;
+/** Keep the pan target this far inside the city bounds. */
+const PAN_INSET = 2;
+
+type Bounds = CityLayout["bounds"];
+const spanOf = (bounds: Bounds) => Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+/** Fog (scenery) starts at the zoom cap and ends a city-span-dependent distance past it. */
+const fogRange = (bounds: Bounds): [number, number] => [MAX_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE + spanOf(bounds) * 2 + 60];
+/** Far plane sits past the fog end, so anything inside the city is faded by fog before it could be clipped. */
+const farPlaneFor = (bounds: Bounds) => fogRange(bounds)[1] + 20;
+
+/**
+ * Keep the controls' target inside the city (with y = 0), moving the camera by the same offset so the
+ * view just slides instead of rotating. Returns true if anything moved.
+ */
+function clampTargetToBounds(controls: MapControlsImpl, bounds: Bounds): boolean {
+  const target = controls.target;
+  const x = THREE.MathUtils.clamp(target.x, bounds.minX + PAN_INSET, bounds.maxX - PAN_INSET);
+  const z = THREE.MathUtils.clamp(target.z, bounds.minZ + PAN_INSET, bounds.maxZ - PAN_INSET);
+  if (x === target.x && z === target.z && target.y === 0) return false;
+  const camera = controls.object;
+  camera.position.x += x - target.x;
+  camera.position.z += z - target.z;
+  camera.position.y -= target.y;
+  target.set(x, 0, z);
+  return true;
+}
 
 /** Canvas aspect below which the starting camera looks along the city's long axis. */
 const PORTRAIT_ASPECT = 0.9;
@@ -292,7 +326,10 @@ function Trees({ layout }: { layout: CityLayout }) {
 function CameraRig({ layout, controlsRef }: { layout: CityLayout; controlsRef: React.MutableRefObject<MapControlsImpl | null> }) {
   const camera = useThree((state) => state.camera as THREE.PerspectiveCamera);
   const size = useThree((state) => state.size);
+  const invalidate = useThree((state) => state.invalidate);
   const placed = useRef(false);
+  // First placement only: frame the city once when the view opens. Intentionally never re-run on
+  // layout changes (no auto-refit); see MAX_CAMERA_DISTANCE.
   useLayoutEffect(() => {
     if (placed.current || size.width === 0) return;
     placed.current = true;
@@ -304,20 +341,27 @@ function CameraRig({ layout, controlsRef }: { layout: CityLayout; controlsRef: R
     const depth = portrait ? maxX - minX : maxZ - minZ;
     const vHalf = THREE.MathUtils.degToRad(camera.fov / 2);
     const hHalf = Math.atan(Math.tan(vHalf) * aspect);
-    const distance = Math.max((width * 0.41) / Math.tan(hHalf), (depth * 0.47) / Math.tan(vHalf)) * (portrait ? 1.12 : 1);
+    const fit = Math.max((width * 0.41) / Math.tan(hHalf), (depth * 0.47) / Math.tan(vHalf)) * (portrait ? 1.12 : 1);
+    const distance = THREE.MathUtils.clamp(fit, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
     const direction = (portrait ? new THREE.Vector3(0.78, 0.8, 0.04) : new THREE.Vector3(0.2, 0.78, 0.72)).normalize();
     camera.position.copy(direction.multiplyScalar(distance));
     camera.lookAt(0, 0, 0);
-    camera.far = distance * 6;
-    camera.updateProjectionMatrix();
     const controls = controlsRef.current;
     if (controls) {
       controls.target.set(0, 0, 0);
-      controls.maxDistance = Math.max(distance * 1.4, 30);
       controls.update();
     }
   }, [camera, size, layout, controlsRef]);
-  const invalidate = useThree((state) => state.invalidate);
+
+  // Every layout change: refresh the far plane and re-check the pan limits against the new bounds.
+  // The player's camera is left exactly where it is unless its target now falls outside the city.
+  useLayoutEffect(() => {
+    camera.far = farPlaneFor(layout.bounds);
+    camera.updateProjectionMatrix();
+    const controls = controlsRef.current;
+    if (controls && clampTargetToBounds(controls, layout.bounds)) controls.update();
+    invalidate();
+  }, [camera, layout, controlsRef, invalidate]);
   const gl = useThree((state) => state.gl);
   useEffect(() => {
     // Test hook (like window.__gameDebug): lets screenshot scripts frame a specific view.
@@ -331,6 +375,16 @@ function CameraRig({ layout, controlsRef }: { layout: CityLayout; controlsRef: R
         if (!lot) return null;
         const point = new THREE.Vector3(lot.x, 0.8, lot.z).project(camera);
         return [(point.x + 1) / 2, (1 - point.y) / 2];
+      },
+      cameraState: () => {
+        const target = controlsRef.current?.target ?? new THREE.Vector3();
+        return {
+          position: camera.position.toArray().map((value) => Math.round(value * 100) / 100),
+          target: target.toArray().map((value) => Math.round(value * 100) / 100),
+          distance: Math.round(camera.position.distanceTo(target) * 100) / 100,
+          far: Math.round(camera.far),
+          maxDistance: controlsRef.current?.maxDistance ?? null,
+        };
       },
       setView: (position: [number, number, number], target: [number, number, number]) => {
         camera.position.set(...position);
@@ -361,8 +415,10 @@ function Scene({ facilities, onSelect, reducedMotion, powerShort, flashKeys, low
   const size = useThree((state) => state.size);
   const motion = !reducedMotion;
   const [portrait] = useState(() => size.width > 0 && size.width / size.height < PORTRAIT_ASPECT);
-  const { minX, maxX, minZ, maxZ } = layout.bounds;
-  const span = Math.max(maxX - minX, maxZ - minZ);
+  const span = spanOf(layout.bounds);
+  // The pan clamp reads the latest bounds through a ref, so it always matches the current layout.
+  const boundsRef = useRef(layout.bounds);
+  boundsRef.current = layout.bounds;
 
   useEffect(() => {
     document.body.style.cursor = hovered ? "pointer" : "";
@@ -371,25 +427,14 @@ function Scene({ facilities, onSelect, reducedMotion, powerShort, flashKeys, low
     document.body.style.cursor = "";
   }, []);
 
-  const clampTarget = () => {
-    const controls = controlsRef.current;
-    if (!controls) return;
-    const target = controls.target;
-    const x = THREE.MathUtils.clamp(target.x, minX + 2, maxX - 2);
-    const z = THREE.MathUtils.clamp(target.z, minZ + 2, maxZ - 2);
-    if (x !== target.x || z !== target.z || target.y !== 0) {
-      const camera = controls.object;
-      camera.position.x += x - target.x;
-      camera.position.z += z - target.z;
-      camera.position.y -= target.y;
-      target.set(x, 0, z);
-    }
-  };
+  const clampTarget = useCallback(() => {
+    if (controlsRef.current) clampTargetToBounds(controlsRef.current, boundsRef.current);
+  }, []);
 
   return (
     <>
       <color attach="background" args={[SCENE.background]} />
-      <fog attach="fog" args={[SCENE.background, span * 1.1, span * 3.2]} />
+      <fog attach="fog" args={[SCENE.background, ...fogRange(layout.bounds)]} />
       <hemisphereLight args={["#e0f2fe", "#3d5e47", 1.1]} />
       <ambientLight intensity={0.35} />
       <directionalLight
@@ -435,8 +480,8 @@ function Scene({ facilities, onSelect, reducedMotion, powerShort, flashKeys, low
         makeDefault
         enableDamping={motion}
         dampingFactor={0.12}
-        minDistance={LOT_PITCH * 1.6}
-        maxDistance={span * 1.6}
+        minDistance={MIN_CAMERA_DISTANCE}
+        maxDistance={MAX_CAMERA_DISTANCE}
         minPolarAngle={0.2}
         maxPolarAngle={1.18}
         zoomSpeed={0.9}
@@ -456,7 +501,7 @@ export default function FactoryMap3D(props: FactoryMap3DProps) {
       shadows={!lowPower}
       dpr={lowPower ? [1, 1.5] : [1, 2]}
       frameloop={props.reducedMotion ? "demand" : "always"}
-      camera={{ fov: 40, near: 0.5, far: 600, position: [20, 40, 30] }}
+      camera={{ fov: 40, near: 0.5, far: 400, position: [20, 40, 30] }}
       gl={{ antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false }}
       onPointerMissed={() => setHovered(null)}
     >
