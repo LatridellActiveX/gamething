@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { INITIAL_GAME_STATE, RESOURCE_DEFINITIONS } from "./game/state/initialState";
 import { LOGO_ART, getFacilityArt, getResourceArt, getTabArt } from "./assets/art";
 import { exportSave, importSave, loadGame, resetSave, saveGame } from "./game/state/storage";
@@ -21,6 +21,8 @@ import {
 import { DeltaFloat } from "./ui/DeltaFloat";
 import { MapView } from "./ui/MapView";
 import { BuildCatalog } from "./ui/BuildCatalog";
+
+const TechTree = lazy(() => import("./ui/TechTree"));
 import { canAffordFacility, getRecommendation } from "./game/tech/catalog";
 import { getGuideProgress } from "./game/tech/guide";
 import { GuidePanel, GuideSteps } from "./ui/GuidePanel";
@@ -81,6 +83,7 @@ function App() {
   const [importText, setImportText] = useState("");
   const [upgradeNotice, setUpgradeNotice] = useState("Factories online and ready.");
   const [selectedFacilityId, setSelectedFacilityId] = useState<FacilityId | null>(null);
+  const [tree, setTree] = useState<{ focus: FacilityId | null } | null>(null);
   const [warehouseFilter, setWarehouseFilter] = useState<WarehouseFilter>("all");
   const [log, setLog] = useState<string[]>([
     "System online. Industrial Frontier booted.",
@@ -363,6 +366,7 @@ function App() {
       flashKeys={flashKeys}
       onBuild={handleUpgrade}
       onSelect={setSelectedFacilityId}
+      onOpenTree={(focus) => setTree({ focus: focus ?? null })}
       bannerEyebrow={guide.active ? `Recommended next · Step ${guide.currentIndex + 1} of ${guide.steps.length}` : undefined}
       bannerExtra={guide.active ? <GuideSteps progress={guide} /> : undefined}
       side={guide.active ? <GuidePanel game={game} progress={guide} onDismiss={handleDismissGuide} onOpenCargo={() => goToTab("warehouse")} /> : undefined}
@@ -522,6 +526,11 @@ function App() {
           </button>
         ))}
       </nav>
+      {tree && (
+        <Suspense fallback={<div className="tt-overlay tt-loading">Loading tech tree…</div>}>
+          <TechTree game={game} recommendation={recommendation} reducedMotion={reducedMotion} initialFocus={tree.focus} onClose={() => setTree(null)} onBuild={handleUpgrade} onOpenFacility={setSelectedFacilityId} />
+        </Suspense>
+      )}
       {selectedFacility && selectedCost && (
         <div className="facility-modal-backdrop" onClick={() => setSelectedFacilityId(null)}>
           <section className={`facility-modal ${flashKeys[selectedFacility.id] !== undefined ? "is-flashing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="facility-modal-title" onClick={(event) => event.stopPropagation()}>

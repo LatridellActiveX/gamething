@@ -127,3 +127,9 @@ export function getWatchList(state: GameState) {
     return { resourceId, name: RESOURCE_DEFINITIONS[resourceId].name, amount, rate, warn };
   });
 }
+
+/** The era the player is working in: the furthest era with something built, or the era of the recommended build. */
+export function getCurrentEra(state: GameState, recommendedId: FacilityId | null): number {
+  const builtEra = Math.max(1, ...Object.values(state.facilities).filter((facility) => facility.level > 0).map((facility) => TECH_NODES[facility.id].era));
+  return Math.max(builtEra, recommendedId ? TECH_NODES[recommendedId].era : 1);
+}

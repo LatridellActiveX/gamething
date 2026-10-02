@@ -5,7 +5,7 @@ import { getFacilityArt, getResourceArt } from "../assets/art";
 import { getFacilityUpgradeCost } from "../game/engine";
 import { RESOURCE_DEFINITIONS } from "../game/state/initialState";
 import type { FacilityId, GameState, ResourceId } from "../game/state/types";
-import { getCatalogState, getShortfallLabel, getStepsAway, getWatchList, type CatalogState, type Recommendation } from "../game/tech/catalog";
+import { getCatalogState, getCurrentEra, getShortfallLabel, getStepsAway, getWatchList, type CatalogState, type Recommendation } from "../game/tech/catalog";
 import { CATEGORY_META, CATEGORY_ORDER, TECH_NODES, getEra, type TechCategory } from "../game/tech/techTree";
 
 type Facility = GameState["facilities"][FacilityId];
@@ -108,15 +108,17 @@ export type BuildCatalogProps = {
   /** Extra banner actions. */
   bannerExtra?: ReactNode;
   bannerEyebrow?: ReactNode;
+  /** Opens the tech tree, optionally focused on a facility. */
+  onOpenTree?: (focus?: FacilityId) => void;
 };
 
-export function BuildCatalog({ game, recommendation, flashKeys, onBuild, onSelect, map, side, bannerExtra, bannerEyebrow }: BuildCatalogProps) {
+export function BuildCatalog({ game, recommendation, flashKeys, onBuild, onSelect, map, side, bannerExtra, bannerEyebrow, onOpenTree }: BuildCatalogProps) {
   const [filter, setFilter] = useState<CategoryFilter>("all");
   const [showLocked, setShowLocked] = useState(true);
   const [expanded, setExpanded] = useState<Partial<Record<TechCategory, boolean>>>({});
   const recommendedId = recommendation?.facilityId ?? null;
   const facilities = Object.values(game.facilities);
-  const currentEra = Math.max(1, ...facilities.filter((facility) => facility.unlocked).map((facility) => TECH_NODES[facility.id].era));
+  const currentEra = getCurrentEra(game, recommendedId);
 
   const groups = useMemo(() => CATEGORY_ORDER.map((category) => {
     const members = facilities
@@ -147,7 +149,7 @@ export function BuildCatalog({ game, recommendation, flashKeys, onBuild, onSelec
             <button type="button" className="gold" disabled={Boolean(recommendedShortfall)} onClick={(event) => onBuild(recommended.id, event.currentTarget)}>
               {recommendedShortfall ?? `${recommended.level > 0 ? "Upgrade" : "Build"} · ${money(getFacilityUpgradeCost(recommended).cash)}`}
             </button>
-            <button type="button" className="secondary small" onClick={() => onSelect(recommended.id)}>Details</button>
+            {onOpenTree ? <button type="button" className="secondary small" onClick={() => onOpenTree(recommended.id)}>View in Tech Tree</button> : <button type="button" className="secondary small" onClick={() => onSelect(recommended.id)}>Details</button>}
           </div>
         </section>
       )}
@@ -199,6 +201,17 @@ export function BuildCatalog({ game, recommendation, flashKeys, onBuild, onSelec
         </div>
         <aside className="bt-side">
           {side}
+          {onOpenTree && (
+            <section className="panel bt-tree-card" aria-label="Tech tree">
+              <div className="bt-tree-art" aria-hidden="true">
+                {(["coalGenerator", "blastFurnace", "rollingMill", "electronicsAssembler", "satelliteHangar"] as FacilityId[]).map((id) => <img key={id} className={`pixel-icon ${game.facilities[id].unlocked ? "" : "is-locked"}`} src={getFacilityArt(id)} alt="" width={28} height={28} />)}
+              </div>
+              <p className="eyebrow">Tech tree</p>
+              <h3>Era {getEra(currentEra).numeral} · {getEra(currentEra).name}</h3>
+              <p className="bt-sub">See every building, what it needs and what it unlocks.</p>
+              <button type="button" className="secondary small" onClick={() => onOpenTree()}>Open Tech Tree ›</button>
+            </section>
+          )}
           <section className="panel bt-watch" aria-label="Building materials">
             <p className="eyebrow">Watch list</p>
             <h3>Building materials</h3>
