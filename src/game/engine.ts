@@ -1,5 +1,6 @@
 import { RESOURCE_DEFINITIONS } from "./state/initialState";
 import type { FacilityId, GameState, ResourceId } from "./state/types";
+import { syncUnlocks } from "./tech/unlocks";
 
 const RESOURCE_IDS = Object.keys(RESOURCE_DEFINITIONS) as ResourceId[];
 const MATERIAL_RESOURCE_IDS = RESOURCE_IDS.filter((resourceId): resourceId is Exclude<ResourceId, "power"> => resourceId !== "power");
@@ -283,14 +284,7 @@ export function upgradeFacility(state: GameState, facilityId: FacilityId): GameS
 }
 
 export function updateFacilityUnlocks(state: GameState): GameState {
-  for (const facility of Object.values(state.facilities)) {
-    if (facility.unlocked || facility.unlockRequirements.length === 0) continue;
-    if (facility.unlockRequirements.every((requirement) => (state.facilities[requirement.facilityId]?.level ?? 0) >= requirement.level)) {
-      facility.unlocked = true;
-      facility.status = "offline";
-    }
-  }
-  return state;
+  return syncUnlocks(state);
 }
 
 export function getResourcePrice(resourceId: ResourceId) {

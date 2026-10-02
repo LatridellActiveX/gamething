@@ -1,5 +1,6 @@
 import { INITIAL_GAME_STATE } from "./initialState";
 import type { FacilityId, GameState, ResourceId } from "./types";
+import { isUnlockedByRules } from "../tech/unlocks";
 
 export const SAVE_KEY = "industrial-frontier-save-v1";
 
@@ -61,7 +62,8 @@ export function resetSave(): GameState {
 function isGameState(value: unknown): value is GameState {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<GameState>;
-  return candidate.schemaVersion === 1
+  const version = (candidate as { schemaVersion?: number }).schemaVersion;
+  return (version === 1 || version === 2)
     && typeof candidate.cash === "number"
     && typeof candidate.lastSavedTimestamp === "number"
     && typeof candidate.lastTickTimestamp === "number"
@@ -113,11 +115,26 @@ function normalizeSave(state: GameState): GameState {
     facility.active ??= facility.enabled;
     facility.enabled = facility.active;
     facility.unlockRequirements = structuredClone(definition.unlockRequirements);
-    facility.unlocked = facility.unlockRequirements.length === 0
-      || facility.unlockRequirements.every((requirement) =>
-        (legacy.facilities[requirement.facilityId]?.level ?? 0) >= requirement.level,
-      );
   }
+
+  // Progression (schema v2). Old saves have no progress block: everything they had unlocked or built
+  // is recorded as a permanent unlock, so no later rule change can lock it again.
+  const progress = (legacy as Partial<GameState>).progress;
+  legacy.progress = {
+    unlocked: Array.isArray(progress?.unlocked) ? progress.unlocked.filter((id) => id in starter.facilities) : [],
+    researchPoints: typeof progress?.researchPoints === "number" && Number.isFinite(progress.researchPoints) ? progress.researchPoints : 0,
+    milestones: Array.isArray(progress?.milestones) ? [...progress.milestones] : [],
+    produced: progress?.produced && typeof progress.produced === "object" ? { ...progress.produced } : {},
+    guideDismissed: progress?.guideDismissed === true,
+  };
+  const sticky = new Set<FacilityId>(legacy.progress.unlocked);
+  for (const facility of Object.values(legacy.facilities)) {
+    const keep = facility.unlocked === true || facility.level > 0 || sticky.has(facility.id) || isUnlockedByRules(legacy, facility.id);
+    facility.unlocked = keep;
+    if (keep) sticky.add(facility.id);
+  }
+  legacy.progress.unlocked = [...sticky];
+  legacy.schemaVersion = 2;
 
   legacy.workforce ??= structuredClone(starter.workforce);
   legacy.cashFlow ??= structuredClone(starter.cashFlow);
