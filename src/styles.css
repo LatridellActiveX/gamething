@@ -1746,8 +1746,9 @@ button.secondary:hover:not(:disabled) {
   top: 0.3rem;
   left: 0.3rem;
   z-index: 0;
+  /* Stretch to the grid row (same insets as the bar padding) so it always matches the button height. */
+  bottom: calc(0.3rem + env(safe-area-inset-bottom));
   width: calc((100% - 0.6rem) / 5);
-  height: 52px;
   border-radius: 8px;
   background: rgba(34, 211, 238, 0.1);
   border: 1px solid rgba(34, 211, 238, 0.28);

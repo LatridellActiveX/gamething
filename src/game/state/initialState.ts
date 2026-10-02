@@ -286,7 +286,7 @@ const FACILITIES = [
 ] as const;
 
 export const INITIAL_GAME_STATE: GameState = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   cash: 25_000,
   power: { available: 0, productionPerSecond: 0, consumptionPerSecond: 0 },
   workforce: { capacity: 20, activeDemand: 0 },
@@ -296,6 +296,13 @@ export const INITIAL_GAME_STATE: GameState = {
     energy: { capacity: 250, inventory: { power: { amount: 50, reserved: 0, autoSell: { enabled: false, amount: 0 } } } },
   },
   facilities: Object.fromEntries(FACILITIES.map((facility) => [facility.id, facility])) as GameState["facilities"],
+  progress: {
+    unlocked: FACILITIES.filter((facility) => facility.unlocked).map((facility) => facility.id),
+    researchPoints: 0,
+    milestones: [],
+    produced: {},
+    guideDismissed: false,
+  },
   lastTickTimestamp: 0,
   lastSavedTimestamp: 0,
 };

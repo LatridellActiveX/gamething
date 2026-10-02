@@ -276,8 +276,20 @@ export interface FacilityState {
   };
 }
 
+/** Long-term progression: sticky unlocks, research and milestones. */
+export interface ProgressState {
+  /** Every facility that has ever been unlocked. Unlocks are permanent, so saves never lose access. */
+  unlocked: FacilityId[];
+  researchPoints: number;
+  /** Ids of completed milestones. */
+  milestones: string[];
+  /** Lifetime production per resource (for milestones). */
+  produced: Partial<Record<ResourceId, number>>;
+  guideDismissed: boolean;
+}
+
 export interface GameState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   cash: number;
   power: {
     available: number;
@@ -299,6 +311,7 @@ export interface GameState {
     energy: EnergyWarehouseState;
   };
   facilities: Record<FacilityId, FacilityState>;
+  progress: ProgressState;
   lastTickTimestamp: number;
   lastSavedTimestamp: number;
 }
