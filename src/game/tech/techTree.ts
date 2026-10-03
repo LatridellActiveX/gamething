@@ -129,3 +129,8 @@ export const TECH_DEPENDENTS: Record<FacilityId, FacilityId[]> = Object.fromEntr
 ) as Record<FacilityId, FacilityId[]>;
 
 export const getEra = (era: number) => ERAS[Math.min(ERAS.length, Math.max(1, era)) - 1];
+
+/** Cosmetic tier shown on the map (T1–T5), derived from the era: I–II → 1, III–IV → 2, V–VI → 3, VII → 4, VIII → 5. */
+export function tierForEra(era: number): number {
+  return era <= 2 ? 1 : era <= 4 ? 2 : era <= 6 ? 3 : era === 7 ? 4 : 5;
+}

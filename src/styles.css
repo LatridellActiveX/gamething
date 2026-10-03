@@ -2268,7 +2268,7 @@ button.tt-mini:hover:not(:disabled) { transform: none; box-shadow: none; }
 .tt-zoom { right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
 .tt-zoom button { width: 36px; min-height: 36px; padding: 0; font-weight: 800; background: rgba(8, 18, 28, 0.94); border: 1px solid rgba(94, 234, 212, 0.35); color: #e6f6f4; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
 .tt-zoom .tt-fit { font-size: 0.6rem; }
-.tt-side { position: relative; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-height: 0; border-left: 1px solid var(--panel-border); background: linear-gradient(180deg, rgba(14, 24, 32, 0.98), rgba(9, 16, 22, 0.98)); padding: 1rem 1rem 0; }
+.tt-side { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; border-left: 1px solid var(--panel-border); background: linear-gradient(180deg, rgba(14, 24, 32, 0.98), rgba(9, 16, 22, 0.98)); padding: 1rem 1rem 0; }
 .tt-handle { display: none; }
 .tt-hero { display: flex; gap: 0.85rem; align-items: center; }
 .tt-big { flex: none; width: 76px; height: 76px; border-radius: 14px; display: grid; place-items: center; background: rgba(6, 11, 16, 0.85); border: 1.5px solid rgba(56, 189, 248, 0.35); }
@@ -2385,3 +2385,36 @@ button.tt-node.is-researchable { border-style: dashed; border-color: rgba(167, 1
 .tt-bar { position: relative; overflow: hidden; }
 .tt-bar i { position: absolute; inset: 0 auto 0 0; background: var(--amber); }
 .tt-rp b { color: var(--purple); }
+
+/* ---- Stage 6: search, unlock animation, map link ---- */
+.tt-mini-node.researchable { background: var(--purple); }
+.tt-search { left: 14px; top: 14px; width: 270px; z-index: 3; }
+.tt-search input { width: 100%; min-height: 36px; padding: 0 12px; border-radius: 9px; border: 1px solid rgba(94, 234, 212, 0.35); background: rgba(8, 18, 28, 0.94); color: #e6f6f4; font: inherit; font-size: 0.8rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
+.tt-search input:focus { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.tt-results { list-style: none; margin: 6px 0 0; padding: 4px; border-radius: 10px; background: rgba(8, 14, 20, 0.97); border: 1px solid var(--panel-border); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5); max-height: 300px; overflow: auto; }
+.tt-results button { display: flex; gap: 8px; align-items: center; width: 100%; padding: 6px 8px; min-height: 40px; border: 0; border-radius: 7px; background: transparent; color: inherit; text-align: left; box-shadow: none; font-weight: 600; font-size: 0.78rem; }
+.tt-results button:hover, .tt-results button:focus-visible { background: rgba(34, 211, 238, 0.1); }
+.tt-results small { display: block; color: var(--muted); font-size: 0.66rem; font-weight: 500; }
+.tt-none { padding: 6px 8px; color: var(--muted); font-size: 0.72rem; }
+button.tt-node.is-dim { opacity: 0.22; }
+button.tt-node.is-match { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.tt-cta-links { display: flex; gap: 0.45rem; }
+.tt-cta-links > button { flex: 1; }
+@keyframes tt-pop {
+  0% { transform: scale(0.92); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+  45% { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(52, 211, 153, 0.25); }
+  100% { transform: scale(1); box-shadow: 0 0 0 18px rgba(52, 211, 153, 0); }
+}
+button.tt-node.is-fresh { animation: tt-pop 0.9s ease-out 2; }
+.tt-overlay.is-reduced button.tt-node.is-fresh { animation: none; outline: 2px solid var(--green); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  button.tt-node.is-fresh { animation: none; outline: 2px solid var(--green); outline-offset: 3px; }
+}
+@media (max-width: 600px) {
+  .tt-search { left: 10px; top: 10px; width: calc(100% - 136px); }
+  .tt-search input { min-height: 32px; font-size: 0.75rem; }
+}
+@media (max-width: 600px) {
+  /* The mobile sheet has an extra row for its drag handle. */
+  .tt-side { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+}
