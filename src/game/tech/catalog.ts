@@ -3,9 +3,10 @@
 import { getFacilityUpgradeCost, getNetResourceRate } from "../engine";
 import { RESOURCE_DEFINITIONS } from "../state/initialState";
 import type { FacilityId, GameState, ResourceId } from "../state/types";
+import { getNextMilestone, getResearchCost, isResearchable } from "./research";
 import { TECH_NODES } from "./techTree";
 
-export type CatalogState = "built" | "recommended" | "available" | "unaffordable" | "locked";
+export type CatalogState = "built" | "recommended" | "available" | "unaffordable" | "researchable" | "locked";
 
 export function getMissingMaterials(state: GameState, facilityId: FacilityId): Array<{ resourceId: ResourceId; need: number; have: number }> {
   const cost = getFacilityUpgradeCost(state.facilities[facilityId]);
@@ -77,40 +78,75 @@ export const OPENING_GOALS: Array<{ facilityId: FacilityId; level: number; reaso
 
 export function getRecommendation(state: GameState): Recommendation | null {
   const facilities = state.facilities;
-  const make = (facilityId: FacilityId, reason: string): Recommendation => ({
-    facilityId,
-    title: `${level(state, facilityId) > 0 ? "Upgrade" : "Build"} ${level(state, facilityId) > 0 ? `${facilities[facilityId].name} to Lv ${level(state, facilityId) + 1}` : `a ${facilities[facilityId].name}`}`,
-    reason,
-  });
+  const make = (facilityId: FacilityId, reason: string): Recommendation => {
+    const research = !facilities[facilityId].unlocked;
+    return {
+      facilityId,
+      title: research ? `Research & build a ${facilities[facilityId].name}` : `${level(state, facilityId) > 0 ? "Upgrade" : "Build"} ${level(state, facilityId) > 0 ? `${facilities[facilityId].name} to Lv ${level(state, facilityId) + 1}` : `a ${facilities[facilityId].name}`}`,
+      reason: research ? `${reason} Unlock it for ${getResearchCost(facilityId)} RP.` : reason,
+    };
+  };
+  const reachable = (facilityId: FacilityId) => facilities[facilityId].unlocked || isResearchable(state, facilityId);
   const power = powerOf(state);
   const anyBuilt = Object.values(facilities).some((facility) => facility.level > 0 && facility.id !== "coalGenerator");
   if (level(state, "coalGenerator") > 0 || anyBuilt) {
     // Needs first: a short grid or a full workforce blocks everything else.
     if (power.consumption > power.production * 0.85 && power.consumption > 0) {
-      const option = facilities.solarPanels.unlocked && canAffordFacility(state, "solarPanels") && level(state, "solarPanels") < level(state, "coalGenerator") ? "solarPanels" : "coalGenerator";
+      // Cheapest reachable power source; fuel-free ones win once coal is in deficit.
+      const coalShort = getNetResourceRate(state, "coal") < 0;
+      const sources = (["solarPanels", "windTurbines", "coalGenerator"] as FacilityId[])
+        .filter((id) => reachable(id) && !(id === "coalGenerator" && coalShort && (reachable("solarPanels") || reachable("windTurbines"))))
+        .sort((a, b) => getFacilityUpgradeCost(facilities[a]).cash / (facilities[a].outputRate.power ?? 1) - getFacilityUpgradeCost(facilities[b]).cash / (facilities[b].outputRate.power ?? 1));
+      const option = sources[0] ?? "coalGenerator";
       return make(option, `Your grid is at ${Math.round((power.consumption / Math.max(1, power.production)) * 100)}% load. Add power before building more machines, or they will shut off.`);
     }
     if (state.workforce.activeDemand >= state.workforce.capacity - 2 && facilities.workerHousing.unlocked) {
       return make("workerHousing", `You're using ${state.workforce.activeDemand} of ${state.workforce.capacity} workers. Add housing so new buildings can run.`);
     }
-    if (level(state, "coalGenerator") > 0 && level(state, "coalExcavator") > 0 && getNetResourceRate(state, "coal") < 0 && stock(state, "coal") < 300) {
+    if (level(state, "coalGenerator") > 0 && level(state, "coalExcavator") > 0 && level(state, "coalExcavator") < 8 && getNetResourceRate(state, "coal") < 0 && stock(state, "coal") < 300) {
       return make("coalExcavator", `Coal is running low (${Math.round(stock(state, "coal"))} left) and you burn more than you mine.`);
     }
   }
-  const goal = OPENING_GOALS.find((entry) => facilities[entry.facilityId].unlocked && level(state, entry.facilityId) < entry.level);
+  const goal = OPENING_GOALS.find((entry) => reachable(entry.facilityId) && level(state, entry.facilityId) < entry.level);
   if (goal) return make(goal.facilityId, goal.reason);
+  // Then work toward the next milestone: build its key facility, or the next step on the way to it.
+  const milestone = getNextMilestone(state);
+  if (milestone) {
+    const step = stepToward(state, milestone.icon, 1, new Set());
+    if (step) return make(step, step === milestone.icon ? `Needed for the "${milestone.name}" milestone: ${milestone.goal.toLowerCase()}.` : `A step toward ${facilities[milestone.icon].name}, for the "${milestone.name}" milestone.`);
+  }
   // After the opening: the cheapest unbuilt facility you can build, from the earliest era.
   const options = Object.values(facilities)
-    .filter((facility) => facility.unlocked && facility.level === 0)
-    .sort((a, b) => TECH_NODES[a.id].era - TECH_NODES[b.id].era || Number(canAffordFacility(state, b.id)) - Number(canAffordFacility(state, a.id)) || a.upgrade.base.cash - b.upgrade.base.cash);
+    .filter((facility) => reachable(facility.id) && facility.level === 0)
+    .sort((a, b) => TECH_NODES[a.id].era - TECH_NODES[b.id].era || Number(b.unlocked) - Number(a.unlocked) || Number(canAffordFacility(state, b.id)) - Number(canAffordFacility(state, a.id)) || a.upgrade.base.cash - b.upgrade.base.cash);
   const next = options[0];
-  return next ? make(next.id, TECH_NODES[next.id].why) : null;
+  if (next) return make(next.id, TECH_NODES[next.id].why);
+  // Everything reachable is built: upgrade a requirement to open up the next facility.
+  const locked = Object.values(facilities).filter((facility) => !facility.unlocked).sort((a, b) => TECH_NODES[a.id].era - TECH_NODES[b.id].era);
+  for (const target of locked) {
+    const step = stepToward(state, target.id, 1, new Set());
+    if (step && step !== target.id) return make(step, `Opens the way to ${target.name}.`);
+  }
+  return null;
+}
+
+/** The next thing to build or upgrade on the way to `target` reaching `wanted` levels, or null if it's done or blocked. */
+function stepToward(state: GameState, target: FacilityId, wanted: number, trail: Set<FacilityId>): FacilityId | null {
+  const facility = state.facilities[target];
+  if (facility.level >= wanted || trail.has(target)) return null;
+  trail.add(target);
+  for (const requirement of facility.unlockRequirements) {
+    const step = stepToward(state, requirement.facilityId, requirement.level, trail);
+    if (step) return step;
+  }
+  return facility.unlocked || isResearchable(state, target) ? target : null;
 }
 
 export function getCatalogState(state: GameState, facilityId: FacilityId, recommendedId: FacilityId | null): CatalogState {
   const facility = state.facilities[facilityId];
-  if (facilityId === recommendedId && facility.unlocked) return "recommended";
-  if (!facility.unlocked) return "locked";
+  const researchable = isResearchable(state, facilityId);
+  if (facilityId === recommendedId && (facility.unlocked || researchable)) return "recommended";
+  if (!facility.unlocked) return researchable ? "researchable" : "locked";
   if (facility.level > 0) return "built";
   return canAffordFacility(state, facilityId) ? "available" : "unaffordable";
 }

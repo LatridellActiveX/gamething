@@ -1,14 +1,16 @@
 // Unlock rules. Unlocks are sticky: once a facility is unlocked (or built) it stays unlocked
 // forever, recorded in state.progress.unlocked, so rule changes can never take access away.
 import type { FacilityId, GameState } from "../state/types";
+import { TECH_NODES } from "./techTree";
 
 export function meetsRequirements(state: GameState, facilityId: FacilityId): boolean {
   return state.facilities[facilityId].unlockRequirements.every((requirement) => (state.facilities[requirement.facilityId]?.level ?? 0) >= requirement.level);
 }
 
-/** Whether the current rules unlock this facility automatically (without any player action). */
+/** Whether the current rules unlock this facility automatically (without any player action).
+ * Only Era I is free; everything later is researched with RP (see research.ts). */
 export function isUnlockedByRules(state: GameState, facilityId: FacilityId): boolean {
-  return meetsRequirements(state, facilityId);
+  return TECH_NODES[facilityId].era === 1 && meetsRequirements(state, facilityId);
 }
 
 export function markUnlocked(state: GameState, facilityId: FacilityId) {

@@ -1,4 +1,5 @@
-import { INITIAL_GAME_STATE } from "./initialState";
+import { createNewGame } from "./newGame";
+import { backfillMilestones } from "../tech/research";
 import type { FacilityId, GameState, ResourceId } from "./types";
 import { isUnlockedByRules } from "../tech/unlocks";
 
@@ -25,7 +26,7 @@ export function saveGame(state: GameState): void {
 
 export function loadGame(): GameState {
   const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return structuredClone(INITIAL_GAME_STATE);
+  if (!raw) return createNewGame();
 
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -40,7 +41,7 @@ export function loadGame(): GameState {
     return parsed;
   } catch {
     localStorage.removeItem(SAVE_KEY);
-    return structuredClone(INITIAL_GAME_STATE);
+    return createNewGame();
   }
 }
 
@@ -56,7 +57,7 @@ export function importSave(json: string): GameState {
 
 export function resetSave(): GameState {
   localStorage.removeItem(SAVE_KEY);
-  return structuredClone(INITIAL_GAME_STATE);
+  return createNewGame();
 }
 
 function isGameState(value: unknown): value is GameState {
@@ -72,7 +73,7 @@ function isGameState(value: unknown): value is GameState {
 }
 
 function normalizeSave(state: GameState): GameState {
-  const starter = structuredClone(INITIAL_GAME_STATE);
+  const starter = createNewGame();
   const legacy = state as GameState & {
     warehouses: GameState["warehouses"] & { energy?: GameState["warehouses"]["energy"] };
   };
@@ -134,6 +135,9 @@ function normalizeSave(state: GameState): GameState {
     if (keep) sticky.add(facility.id);
   }
   legacy.progress.unlocked = [...sticky];
+  // Research (stage 5): eras the player has already built in count as reached, so their milestones
+  // are marked complete and their RP rewards granted. Unlocks above stay untouched.
+  backfillMilestones(legacy);
   legacy.schemaVersion = 2;
 
   legacy.workforce ??= structuredClone(starter.workforce);

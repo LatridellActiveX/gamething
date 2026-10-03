@@ -5,6 +5,8 @@ import { getFacilityArt, getResourceArt } from "../assets/art";
 import { getFacilityUpgradeCost } from "../game/engine";
 import { RESOURCE_DEFINITIONS } from "../game/state/initialState";
 import type { FacilityId, GameState, ResourceId } from "../game/state/types";
+import { canResearch, getLockReason, getNextMilestone, getResearchCost, getResearchRate, isEraOpen } from "../game/tech/research";
+import { RpIcon } from "./RpIcon";
 import { getCatalogState, getCurrentEra, getShortfallLabel, getStepsAway, getWatchList, type CatalogState, type Recommendation } from "../game/tech/catalog";
 import { CATEGORY_META, CATEGORY_ORDER, TECH_NODES, getEra, type TechCategory } from "../game/tech/techTree";
 
@@ -50,12 +52,18 @@ function FacilityCard({ game, facility, status, flashKey, onBuild, onSelect }: C
   const cost = getFacilityUpgradeCost(facility);
   const shortfall = getShortfallLabel(game, facility.id);
   const era = getEra(TECH_NODES[facility.id].era);
-  const badge = status === "recommended" ? "★ Recommended" : status === "locked" ? `🔒 Era ${era.numeral}` : facility.level > 0 ? `Lv ${facility.level}` : status === "unaffordable" ? "Can't afford" : "Available";
+  const badge = status === "recommended" ? "★ Recommended" : status === "researchable" ? `${getResearchCost(facility.id)} RP` : status === "locked" ? `🔒 Era ${era.numeral}` : facility.level > 0 ? `Lv ${facility.level}` : status === "unaffordable" ? "Can't afford" : "Available";
   const unmet = facility.unlockRequirements.map((requirement) => ({ ...requirement, have: game.facilities[requirement.facilityId]?.level ?? 0, name: game.facilities[requirement.facilityId]?.name ?? requirement.facilityId }));
   const stepsAway = status === "locked" ? getStepsAway(game, facility.id) : 0;
   const reqDone = unmet.reduce((total, requirement) => total + Math.min(requirement.level, requirement.have), 0);
   const reqTotal = unmet.reduce((total, requirement) => total + requirement.level, 0);
-  const action = facility.level > 0 ? "Upgrade" : "Build";
+  const needsResearch = !facility.unlocked;
+  const rpCost = getResearchCost(facility.id);
+  const rpShort = needsResearch && !canResearch(game, facility.id);
+  const action = needsResearch ? (shortfall ? "Research" : "Unlock & Build") : facility.level > 0 ? "Upgrade" : "Build";
+  const blocked = needsResearch ? rpShort : Boolean(shortfall);
+  const buttonLabel = needsResearch ? (rpShort ? `Need ${rpCost} RP` : action) : shortfall ?? action;
+  const eraClosed = status === "locked" && !isEraOpen(game, TECH_NODES[facility.id].era);
   return (
     <article
       className={`bt-card is-${status} ${facility.level > 0 ? "is-owned" : ""} ${flashKey !== undefined ? "is-flashing" : ""}`}
@@ -72,11 +80,13 @@ function FacilityCard({ game, facility, status, flashKey, onBuild, onSelect }: C
       {flashKey !== undefined && <span key={`toast-${flashKey}`} className="levelup-toast" aria-hidden="true">{facility.level === 1 ? "Built!" : `Level ${facility.level}!`}</span>}
       {status === "locked" ? (
         <div className="bt-req">
+          {eraClosed && <span className="bt-era-lock">{getLockReason(game, facility.id)}</span>}
           <span>{stepsAway > 1 ? `${stepsAway} steps away · ` : ""}Needs {unmet.filter((requirement) => requirement.have < requirement.level).map((requirement) => `${requirement.name} Lv ${requirement.level}`).join(" + ") || "earlier buildings"}</span>
           <div className="bt-req-row"><span className="bt-req-meter"><i style={{ width: `${reqTotal ? (reqDone / reqTotal) * 100 : 0}%` }} /></span>{reqDone} / {reqTotal}</div>
         </div>
       ) : (
         <div className="bt-foot">
+          {needsResearch && <span className={`bt-pill rp ${rpShort ? "no" : "ok"}`} title={`Research cost: ${rpCost} RP (you have ${Math.floor(game.progress.researchPoints)})`}><RpIcon />{rpCost} RP</span>}
           <span className={`bt-pill ${game.cash >= cost.cash ? "ok" : "no"}`}><img className="pixel-icon" src={getResourceArt("goldBar")} alt="" width={14} height={14} />{money(cost.cash)}</span>
           {(Object.entries(cost.materials) as Array<[ResourceId, number]>).map(([resourceId, amount]) => {
             const have = game.warehouses.central.inventory[resourceId]?.amount ?? 0;
@@ -84,11 +94,11 @@ function FacilityCard({ game, facility, status, flashKey, onBuild, onSelect }: C
           })}
           <button
             type="button"
-            className={`small bt-action ${status === "recommended" ? "gold" : ""} ${shortfall ? "is-short" : ""}`}
-            disabled={Boolean(shortfall)}
+            className={`small bt-action ${status === "recommended" ? "gold" : ""} ${needsResearch ? "is-research" : ""} ${blocked ? "is-short" : ""}`}
+            disabled={blocked}
             onClick={(event) => { event.stopPropagation(); onBuild(facility.id, event.currentTarget); }}
-            title={shortfall ? `${shortfall} to ${action.toLowerCase()} ${facility.name}` : `${action} ${facility.name}`}
-          >{shortfall ?? action}</button>
+            title={blocked ? `${buttonLabel} to ${action.toLowerCase()} ${facility.name}` : `${action} ${facility.name}`}
+          >{buttonLabel}</button>
         </div>
       )}
     </article>
@@ -146,9 +156,15 @@ export function BuildCatalog({ game, recommendation, flashKeys, onBuild, onSelec
             {bannerExtra}
           </div>
           <div className="bt-banner-actions">
-            <button type="button" className="gold" disabled={Boolean(recommendedShortfall)} onClick={(event) => onBuild(recommended.id, event.currentTarget)}>
-              {recommendedShortfall ?? `${recommended.level > 0 ? "Upgrade" : "Build"} · ${money(getFacilityUpgradeCost(recommended).cash)}`}
-            </button>
+            {recommended.unlocked ? (
+              <button type="button" className="gold" disabled={Boolean(recommendedShortfall)} onClick={(event) => onBuild(recommended.id, event.currentTarget)}>
+                {recommendedShortfall ?? `${recommended.level > 0 ? "Upgrade" : "Build"} · ${money(getFacilityUpgradeCost(recommended).cash)}`}
+              </button>
+            ) : (
+              <button type="button" className="gold" disabled={!canResearch(game, recommended.id)} onClick={(event) => onBuild(recommended.id, event.currentTarget)}>
+                <RpIcon />{canResearch(game, recommended.id) ? `${recommendedShortfall ? "Research" : "Unlock & Build"} · ${getResearchCost(recommended.id)} RP` : `Need ${getResearchCost(recommended.id)} RP`}
+              </button>
+            )}
             {onOpenTree ? <button type="button" className="secondary small" onClick={() => onOpenTree(recommended.id)}>View in Tech Tree</button> : <button type="button" className="secondary small" onClick={() => onSelect(recommended.id)}>Details</button>}
           </div>
         </section>
@@ -201,6 +217,7 @@ export function BuildCatalog({ game, recommendation, flashKeys, onBuild, onSelec
         </div>
         <aside className="bt-side">
           {side}
+          <ResearchCard game={game} />
           {onOpenTree && (
             <section className="panel bt-tree-card" aria-label="Tech tree">
               <div className="bt-tree-art" aria-hidden="true">
@@ -228,10 +245,30 @@ export function BuildCatalog({ game, recommendation, flashKeys, onBuild, onSelec
   );
 }
 
-const STATUS_ORDER: Record<CatalogState, number> = { recommended: 0, built: 1, available: 2, unaffordable: 3, locked: 4 };
+const STATUS_ORDER: Record<CatalogState, number> = { recommended: 0, built: 1, available: 2, unaffordable: 3, researchable: 4, locked: 5 };
 
 function categoryArt(category: TechCategory): string {
   const icon = CATEGORY_META[category].icon;
   if (category === "storage") return getFacilityArt("warehouse");
   return getResourceArt(icon);
+}
+
+/** RP balance, income and the next milestone with its progress. */
+export function ResearchCard({ game }: { game: GameState }) {
+  const next = getNextMilestone(game);
+  const progress = next ? next.progress(game) : null;
+  const pct = progress ? Math.min(100, (progress.value / progress.target) * 100) : 100;
+  return (
+    <section className="panel bt-research" aria-label="Research">
+      <p className="eyebrow">Research</p>
+      <div className="bt-rp"><RpIcon size={22} /><b>{Math.floor(game.progress.researchPoints)}</b><span>RP</span><small>+{getResearchRate(game).toFixed(2)}/s from running buildings</small></div>
+      {next && progress ? (
+        <div className="bt-ms">
+          <div className="bt-ms-head"><img className="pixel-icon" src={getFacilityArt(next.icon)} alt="" width={22} height={22} /><span><b>{next.name}</b><small>{next.goal}</small></span></div>
+          <div className="bt-req-row"><span className="bt-req-meter"><i style={{ width: `${pct}%` }} /></span>{qty(Math.min(progress.value, progress.target))} / {qty(progress.target)}</div>
+          <small className="bt-sub">Reward: +{next.reward} RP{next.opensEra ? ` · opens Era ${getEra(next.opensEra).numeral} ${getEra(next.opensEra).name}` : ""}</small>
+        </div>
+      ) : <p className="bt-sub">Every milestone complete. You reached orbit!</p>}
+    </section>
+  );
 }

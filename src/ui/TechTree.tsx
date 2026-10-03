@@ -5,11 +5,13 @@ import { LOGO_ART, getFacilityArt, getResourceArt } from "../assets/art";
 import { getFacilityUpgradeCost } from "../game/engine";
 import { RESOURCE_DEFINITIONS } from "../game/state/initialState";
 import type { FacilityId, GameState, ResourceId } from "../game/state/types";
+import { canResearch, getEraMilestone, getNextMilestone, getResearchCost, getResearchRate, isEraOpen, isResearchable } from "../game/tech/research";
+import { RpIcon } from "./RpIcon";
 import { getCurrentEra, getShortfallLabel, getStepsAway, type Recommendation } from "../game/tech/catalog";
 import { CATEGORY_META, ERAS, TECH_DEPENDENTS, TECH_NODES, getEra } from "../game/tech/techTree";
 import { NODE_H, NODE_W, TREE_LAYOUT, edgePath } from "./techTreeLayout";
 
-export type TreeNodeState = "built" | "recommended" | "available" | "locked" | "fog";
+export type TreeNodeState = "built" | "recommended" | "available" | "researchable" | "locked" | "fog";
 
 type Camera = { x: number; y: number; k: number };
 
@@ -27,16 +29,18 @@ const money = (value: number) => `$${Math.round(value).toLocaleString()}`;
 const qty = (value: number) => (Math.round(value * 100) / 100).toLocaleString();
 const MIN_K = 0.3;
 const MAX_K = 1.6;
-const STATE_LABEL: Record<TreeNodeState, string> = { built: "Built", recommended: "★ Next", available: "Available", locked: "Locked", fog: "???" };
+const STATE_LABEL: Record<TreeNodeState, string> = { built: "Built", recommended: "★ Next", available: "Available", researchable: "Research", locked: "Locked", fog: "???" };
 const MINI_W = 208;
 const MINI_H = 96;
 
 export function getTreeNodeState(game: GameState, id: FacilityId, recommendedId: FacilityId | null, frontierEra: number): TreeNodeState {
   const facility = game.facilities[id];
-  if (id === recommendedId && facility.unlocked) return "recommended";
+  const researchable = isResearchable(game, id);
+  if (id === recommendedId && (facility.unlocked || researchable)) return "recommended";
   if (facility.level > 0) return "built";
   if (facility.unlocked) return "available";
-  return TECH_NODES[id].era > frontierEra + 1 ? "fog" : "locked";
+  if (researchable) return "researchable";
+  return TECH_NODES[id].era > frontierEra + 1 && !isEraOpen(game, TECH_NODES[id].era) ? "fog" : "locked";
 }
 
 export default function TechTree({ game, recommendation, reducedMotion, initialFocus, onClose, onBuild, onOpenFacility }: TechTreeProps) {
@@ -167,6 +171,8 @@ export default function TechTree({ game, recommendation, reducedMotion, initialF
   const edges = useMemo(() => (Object.keys(TECH_NODES) as FacilityId[]).flatMap((to) => TECH_NODES[to].prerequisites.map((from) => ({ from, to }))), []);
   const builtCount = facilities.filter((facility) => facility.level > 0).length;
   const frontier = getEra(frontierEra);
+  const nextMilestone = getNextMilestone(game);
+  const nextProgress = nextMilestone ? nextMilestone.progress(game) : null;
   const camera = cam ?? { x: 0, y: 0, k: 1 };
   const miniScale = Math.min(MINI_W / TREE_LAYOUT.width, MINI_H / TREE_LAYOUT.height);
 
@@ -178,21 +184,30 @@ export default function TechTree({ game, recommendation, reducedMotion, initialF
         <div className="tt-stats">
           <div className="tt-stat"><img className="pixel-icon" src={getResourceArt("goldBar")} alt="" width={20} height={20} /><div><b>{money(game.cash)}</b><small>cash</small></div></div>
           <div className="tt-stat tt-hide-m"><img className="pixel-icon" src={getResourceArt("power")} alt="" width={20} height={20} /><div><b>{qty(game.power.productionPerSecond)} / {qty(game.power.consumptionPerSecond)} MW</b><small>{game.power.productionPerSecond >= game.power.consumptionPerSecond ? "grid ok" : "grid short"}</small></div></div>
-          <div className="tt-stat"><img className="pixel-icon" src={getFacilityArt("factory")} alt="" width={20} height={20} /><div><b>{builtCount} / {facilities.length}</b><small>built</small></div></div>
+          <div className="tt-stat tt-rp" title={`+${getResearchRate(game).toFixed(2)} RP per second`}><RpIcon size={20} /><div><b>{Math.floor(game.progress.researchPoints)} RP</b><small>+{getResearchRate(game).toFixed(2)}/s</small></div></div>
+          <div className="tt-stat tt-hide-m"><img className="pixel-icon" src={getFacilityArt("factory")} alt="" width={20} height={20} /><div><b>{builtCount} / {facilities.length}</b><small>built</small></div></div>
         </div>
       </header>
-      <section className="tt-track" aria-label="Era progress">
-        <div className="tt-track-label"><p className="eyebrow">Journey</p><b>Era {frontier.numeral} · {frontier.name}</b></div>
+      <section className="tt-track" aria-label="Milestones">
+        <div className="tt-track-label">
+          <p className="eyebrow">{nextMilestone ? "Next milestone" : "Journey complete"}</p>
+          <b>{nextMilestone ? nextMilestone.name : `Era ${frontier.numeral} · ${frontier.name}`}</b>
+          {nextMilestone && nextProgress && <small>{nextMilestone.goal} · {qty(Math.min(nextProgress.value, nextProgress.target))}/{qty(nextProgress.target)}</small>}
+        </div>
         <ol className="tt-steps">
           {ERAS.map((era, index) => {
             const members = facilities.filter((facility) => TECH_NODES[facility.id].era === era.id);
-            const done = members.every((facility) => facility.level > 0);
-            const status = era.id === frontierEra ? "now" : era.id < frontierEra || done ? "done" : "";
+            const milestone = getEraMilestone(era.id);
+            const open = isEraOpen(game, era.id);
+            const isNext = Boolean(milestone && nextMilestone && milestone.id === nextMilestone.id);
+            const progress = milestone && isNext ? milestone.progress(game) : null;
+            const status = open ? "done" : isNext ? "now" : "";
+            const builtHere = members.filter((facility) => facility.level > 0).length;
             return (
-              <li key={era.id} className={`tt-ms ${status}`}>
-                <span className="tt-dot">{status === "done" ? "✓" : era.numeral}</span>
-                <span className="tt-ms-txt"><b>{era.name}</b><small>{members.filter((facility) => facility.level > 0).length} / {members.length} built{done ? " · complete" : ""}</small></span>
-                {index < ERAS.length - 1 && <span className="tt-bar" />}
+              <li key={era.id} className={`tt-ms ${status}`} title={milestone ? `${milestone.name}: ${milestone.goal} (+${milestone.reward} RP)` : "Open from the start"}>
+                <span className="tt-dot">{open ? "✓" : era.numeral}</span>
+                <span className="tt-ms-txt"><b>{era.name}</b><small>{open ? `${builtHere} / ${members.length} built` : progress ? `${milestone!.name} ${Math.floor(Math.min(100, (progress.value / progress.target) * 100))}%` : `🔒 ${milestone?.name ?? ""}`}</small></span>
+                {index < ERAS.length - 1 && <span className="tt-bar">{progress && <i style={{ width: `${Math.min(100, (progress.value / progress.target) * 100)}%` }} />}</span>}
               </li>
             );
           })}
@@ -247,7 +262,7 @@ export default function TechTree({ game, recommendation, reducedMotion, initialF
                   aria-pressed={selected === id}
                   aria-label={`${facility.name}, ${STATE_LABEL[state].replace("★ ", "")}${facility.level > 0 ? `, level ${facility.level}` : ""}`}
                 >
-                  <span className="tt-tag">{state === "built" ? `Lv ${facility.level}` : STATE_LABEL[state]}</span>
+                  <span className="tt-tag">{state === "built" ? `Lv ${facility.level}` : state === "researchable" ? `${getResearchCost(id)} RP` : STATE_LABEL[state]}</span>
                   <span className="tt-ic"><img className="pixel-icon" src={getFacilityArt(id)} alt="" width={36} height={36} draggable={false} /></span>
                   <span className="tt-node-txt"><b>{facility.name}</b><small>{state === "locked" ? "🔒 " : ""}{nodeSubtitle(facility)}</small></span>
                 </button>
@@ -255,7 +270,7 @@ export default function TechTree({ game, recommendation, reducedMotion, initialF
             })}
           </div>
           <div className="tt-hud tt-legend" aria-hidden="true">
-            <span><i className="tt-sw built" />Built</span><span><i className="tt-sw available" />Available</span><span><i className="tt-sw recommended" />Recommended</span><span><i className="tt-sw locked" />Locked</span>
+            <span><i className="tt-sw built" />Built</span><span><i className="tt-sw available" />Available</span><span><i className="tt-sw recommended" />Recommended</span><span><i className="tt-sw researchable" />Research</span><span><i className="tt-sw locked" />Locked</span>
             <span className="tt-hint">Drag to pan · scroll or pinch to zoom</span>
           </div>
           <button
@@ -346,7 +361,7 @@ function DetailPanel({ game, id, state, recommendation, open, mobile, onToggle, 
           <p className="eyebrow">Era {era.numeral} · {era.name}</p>
           <h2>{facility.name}</h2>
           <div className="tt-chips">
-            <span className={`tt-chip is-${state}`}>{state === "recommended" ? "★ Recommended next" : state === "built" ? `Built · Lv ${facility.level}` : state === "available" ? "Available" : stepsAway > 1 ? `Locked · ${stepsAway} steps away` : "Locked"}</span>
+            <span className={`tt-chip is-${state}`}>{state === "recommended" ? "★ Recommended next" : state === "built" ? `Built · Lv ${facility.level}` : state === "available" ? "Available" : state === "researchable" ? `Research · ${getResearchCost(id)} RP` : stepsAway > 1 ? `Locked · ${stepsAway} steps away` : "Locked"}</span>
             <span className="tt-chip">{CATEGORY_META[node.category].label}</span>
           </div>
         </div>
@@ -401,6 +416,12 @@ function DetailPanel({ game, id, state, recommendation, open, mobile, onToggle, 
           <button type="button" className={isRec ? "gold" : ""} disabled={Boolean(shortfall)} onClick={(event) => onBuild(id, event.currentTarget)}>
             {shortfall ?? `${action} · ${money(cost.cash)}`}
           </button>
+        ) : isResearchable(game, id) ? (
+          <button type="button" className={`tt-research ${isRec ? "gold" : ""}`} disabled={!canResearch(game, id)} onClick={(event) => onBuild(id, event.currentTarget)}>
+            <RpIcon />{canResearch(game, id) ? `${shortfall ? "Research" : "Unlock & Build"} · ${getResearchCost(id)} RP` : `Need ${getResearchCost(id)} RP · you have ${Math.floor(game.progress.researchPoints)}`}
+          </button>
+        ) : !isEraOpen(game, TECH_NODES[id].era) ? (
+          <button type="button" disabled>🔒 Era opens with "{getEraMilestone(TECH_NODES[id].era)?.name}"</button>
         ) : (
           <button type="button" disabled>Locked · {requirements.filter((requirement) => requirement.have < requirement.level).map((requirement) => `${game.facilities[requirement.facilityId].name} Lv ${requirement.level}`).join(" + ")}</button>
         )}

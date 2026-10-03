@@ -1,7 +1,8 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { INITIAL_GAME_STATE, RESOURCE_DEFINITIONS } from "./game/state/initialState";
+import { RESOURCE_DEFINITIONS } from "./game/state/initialState";
 import { LOGO_ART, getFacilityArt, getResourceArt, getTabArt } from "./assets/art";
 import { exportSave, importSave, loadGame, resetSave, saveGame } from "./game/state/storage";
+import { createNewGame } from "./game/state/newGame";
 import type { FacilityId, GameState, ResourceDefinition, ResourceId } from "./game/state/types";
 import {
   applyOfflineProgress,
@@ -25,8 +26,9 @@ import { BuildCatalog } from "./ui/BuildCatalog";
 const TechTree = lazy(() => import("./ui/TechTree"));
 import { canAffordFacility, getRecommendation } from "./game/tech/catalog";
 import { getGuideProgress } from "./game/tech/guide";
+import { MILESTONES, canResearch, getLockReason, getResearchCost, researchFacility } from "./game/tech/research";
 import { GuidePanel, GuideSteps } from "./ui/GuidePanel";
-import { CATEGORY_META, TECH_NODES, getEra } from "./game/tech/techTree";
+import { CATEGORY_META, ERAS, TECH_NODES, getEra } from "./game/tech/techTree";
 import { useReducedMotion, useTweenedNumber } from "./ui/hooks";
 import { Meter } from "./ui/Meter";
 
@@ -75,7 +77,7 @@ function App() {
     try {
       return applyOfflineProgress(loadGame(), Date.now());
     } catch {
-      return structuredClone(INITIAL_GAME_STATE);
+      return createNewGame();
     }
   });
   const [tab, setTab] = useState<TabId>("dashboard");
@@ -148,8 +150,22 @@ function App() {
   const builtFacilities = useMemo(() => Object.values(game.facilities).filter((facility) => facility.level > 0).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)), [game]);
   const recommendation = useMemo(() => getRecommendation(game), [game]);
   const guide = useMemo(() => getGuideProgress(game), [game]);
-  const recommendationReady = Boolean(recommendation && game.facilities[recommendation.facilityId].unlocked && canAffordFacility(game, recommendation.facilityId));
+  const recommendationReady = Boolean(recommendation && (game.facilities[recommendation.facilityId].unlocked || canResearch(game, recommendation.facilityId)) && canAffordFacility(game, recommendation.facilityId));
   const addLog = (entry: string) => setLog((current) => [entry, ...current].slice(0, 8));
+  const milestoneSeenRef = useRef(game.progress.milestones.length);
+  useEffect(() => {
+    const done = game.progress.milestones;
+    if (done.length > milestoneSeenRef.current) {
+      for (const id of done.slice(milestoneSeenRef.current)) {
+        const milestone = MILESTONES.find((entry) => entry.id === id);
+        if (!milestone) continue;
+        const message = `Milestone: ${milestone.name}! +${milestone.reward} RP${milestone.opensEra ? `, Era ${ERAS[milestone.opensEra - 1].numeral} ${ERAS[milestone.opensEra - 1].name} is open` : ""}.`;
+        setUpgradeNotice(message);
+        addLog(message);
+      }
+    }
+    milestoneSeenRef.current = done.length;
+  }, [game.progress.milestones.length]);
 
   const triggerFlash = (facilityId: FacilityId) => {
     const flashKey = ++flashSeqRef.current;
@@ -175,8 +191,26 @@ function App() {
   const handleUpgrade = (facilityId: FacilityId, trigger?: HTMLElement | null) => {
     const current = structuredClone(gameRef.current);
     const currentLevel = current.facilities[facilityId].level;
+    let researched = false;
+    if (!current.facilities[facilityId].unlocked) {
+      if (!canResearch(current, facilityId)) {
+        const reason = getLockReason(current, facilityId) ?? "Locked.";
+        setUpgradeNotice(`${current.facilities[facilityId].name}: ${reason}`);
+        shakeElement(trigger);
+        return;
+      }
+      researched = researchFacility(current, facilityId);
+      addLog(`Researched ${current.facilities[facilityId].name} for ${getResearchCost(facilityId)} RP.`);
+    }
     const next = upgradeFacility(current, facilityId);
     updateFacilityUnlocks(next);
+    if (next.facilities[facilityId].level === currentLevel && researched) {
+      gameRef.current = next;
+      setGame(next);
+      triggerFlash(facilityId);
+      setUpgradeNotice(`${next.facilities[facilityId].name} researched. Build it when you have the cash and materials.`);
+      return;
+    }
     if (next.facilities[facilityId].level === currentLevel) {
       setUpgradeNotice(`${current.facilities[facilityId].name} cannot be upgraded yet.`);
       addLog(`${current.facilities[facilityId].name} upgrade blocked: insufficient funds or materials.`);
@@ -549,7 +583,7 @@ function App() {
               <div><label>Outputs / sec</label><div className="pill-list">{Object.entries(selectedFacility.outputRate).length === 0 ? <span className="pill muted">None</span> : Object.entries(selectedFacility.outputRate).map(([resourceId, rate]) => <span className="pill green" key={resourceId}>{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {rate.toFixed(2)}</span>)}</div></div>
             </div>
             <div className="requirement-list"><label>{selectedFacility.level === 0 ? "Build requirements" : "Next upgrade requirements"}</label><div className="pill-list"><span className={`pill ${game.cash >= selectedCost.cash ? "green" : "muted"}`}>Cash: {formatMoney(selectedCost.cash)}</span>{Object.entries(selectedCost.materials).map(([resourceId, amount]) => <span key={resourceId} className={`pill ${(game.warehouses.central.inventory[resourceId as ResourceId]?.amount ?? 0) >= (amount ?? 0) ? "green" : "muted"}`}>{RESOURCE_DEFINITIONS[resourceId as ResourceId].name}: {formatQuantity(amount ?? 0)}</span>)}</div></div>
-            <div className="facility-actions modal-actions"><button className="secondary" onClick={() => handleToggle(selectedFacility.id)} disabled={!selectedFacility.unlocked || selectedFacility.level === 0}>Power: {selectedFacility.active ? "ON" : "OFF"}</button><button onClick={(event) => handleUpgrade(selectedFacility.id, event.currentTarget)} disabled={!selectedFacility.unlocked || !selectedCanAfford}>{selectedFacility.level === 0 ? "Build facility" : "Upgrade facility"}</button></div>
+            <div className="facility-actions modal-actions"><button className="secondary" onClick={() => handleToggle(selectedFacility.id)} disabled={!selectedFacility.unlocked || selectedFacility.level === 0}>Power: {selectedFacility.active ? "ON" : "OFF"}</button>{selectedFacility.unlocked ? <button onClick={(event) => handleUpgrade(selectedFacility.id, event.currentTarget)} disabled={!selectedCanAfford}>{selectedFacility.level === 0 ? "Build facility" : "Upgrade facility"}</button> : <button onClick={(event) => handleUpgrade(selectedFacility.id, event.currentTarget)} disabled={!canResearch(game, selectedFacility.id)} title={getLockReason(game, selectedFacility.id) ?? ""}>{canResearch(game, selectedFacility.id) ? `${selectedCanAfford ? "Unlock & Build" : "Research"} · ${getResearchCost(selectedFacility.id)} RP` : "Locked"}</button>}</div>
           </section>
         </div>
       )}

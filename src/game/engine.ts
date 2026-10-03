@@ -1,5 +1,6 @@
 import { RESOURCE_DEFINITIONS } from "./state/initialState";
 import type { FacilityId, GameState, ResourceId } from "./state/types";
+import { checkMilestones, getResearchRate } from "./tech/research";
 import { syncUnlocks } from "./tech/unlocks";
 
 const RESOURCE_IDS = Object.keys(RESOURCE_DEFINITIONS) as ResourceId[];
@@ -143,6 +144,7 @@ export function tickGameState(state: GameState, seconds: number): GameState {
         const key = resourceId as ResourceId;
         if (key === "power") continue;
         const outputAmount = rate * facility.level;
+        state.progress.produced[key] = (state.progress.produced[key] ?? 0) + outputAmount;
         if (RESOURCE_DEFINITIONS[key].category === "consumer") {
           state.cash += Math.round(RESOURCE_DEFINITIONS[key].baseValue * 0.85 * outputAmount);
         } else {
@@ -155,6 +157,8 @@ export function tickGameState(state: GameState, seconds: number): GameState {
 
     applyAutoSell(state);
     computePowerStats(state);
+    state.progress.researchPoints += getResearchRate(state);
+    checkMilestones(state);
     const financials = computeFinancials(state);
     state.cash = Math.max(0, state.cash - financials.totalCost);
     if (state.cash <= 0) {
@@ -275,6 +279,8 @@ export function upgradeFacility(state: GameState, facilityId: FacilityId): GameS
   facility.active = true;
   facility.enabled = true;
   facility.status = "online";
+  computePowerStats(state);
+  checkMilestones(state);
   if (facilityId === "workerHousing") state.workforce.capacity = 20 + facility.level * 15;
   updateFacilityUnlocks(state);
   stabilizeCapacity(state);
